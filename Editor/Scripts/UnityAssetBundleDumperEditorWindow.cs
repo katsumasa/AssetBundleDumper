@@ -27,27 +27,197 @@ namespace UTJ.UnityAssetBundleDumper.Editor
     }
 
 
+    [System.Serializable]
+    public class AssetBundleDumpData
+    {
+        [SerializeField] public string m_AssetBundleRootFolder;
+        [SerializeField] public string m_AssetBundleExtentions = "*.";
+        [SerializeField] public string[] m_AssetBundleHashes;
+        [SerializeField] public Dictionary<string, string> m_Hash2AssetBundleFilePaths;
+        [SerializeField] public Dictionary<string, string> m_AssetBundleFilePath2Hashes;
+        [SerializeField] public Dictionary<string, string> m_AssetBundleFilePath2DumpFilePaths;
+
+        public AssetBundleDumpData()
+        {
+            m_AssetBundleRootFolder = string.Empty;
+            m_AssetBundleExtentions = "*.";
+            if (m_AssetBundleHashes == null)
+            {
+                m_AssetBundleHashes = new string[] { string.Empty };
+            }
+            if (m_Hash2AssetBundleFilePaths == null)
+            {
+                m_Hash2AssetBundleFilePaths = new Dictionary<string, string>();
+            }
+            if (m_AssetBundleFilePath2Hashes == null)
+            {
+                m_AssetBundleFilePath2Hashes = new Dictionary<string, string>();
+            }
+            if (m_AssetBundleFilePath2DumpFilePaths == null)
+            {
+                m_AssetBundleFilePath2DumpFilePaths = new Dictionary<string, string>();
+            }
+        }
+
+        public void Serialize(string fpath)
+        {
+            using (var fs = new FileStream(fpath, FileMode.Create))
+            {
+                using (BinaryWriter bw = new BinaryWriter(fs))
+                {
+                    bw.Write(m_AssetBundleRootFolder);
+                    bw.Write(m_AssetBundleExtentions);
+
+                    bw.Write(m_AssetBundleHashes.Length);
+                    for (var i = 0; i < m_AssetBundleHashes.Length; i++)
+                    {
+                        bw.Write(m_AssetBundleHashes[i]);
+                    }
+
+                    bw.Write(m_Hash2AssetBundleFilePaths.Count);
+                    foreach (var kv in m_Hash2AssetBundleFilePaths)
+                    {
+                        bw.Write(kv.Key);
+                        bw.Write(kv.Value);
+                    }
+
+                    bw.Write(m_AssetBundleFilePath2Hashes.Count);
+                    foreach (var kv in m_AssetBundleFilePath2Hashes)
+                    {
+                        bw.Write(kv.Key);
+                        bw.Write(kv.Value);
+                    }
+
+                    bw.Write(m_AssetBundleFilePath2DumpFilePaths.Count);
+                    foreach (var kv in m_AssetBundleFilePath2DumpFilePaths)
+                    {
+                        bw.Write(kv.Key);
+                        bw.Write(kv.Value);
+                    }
+                }
+            }                        
+        }
+
+        public void Deserialize(string fpath)
+        {
+            using (var fs = new FileStream(fpath, FileMode.Open))
+            {
+                using (BinaryReader br = new BinaryReader(fs))
+                {
+                    m_AssetBundleRootFolder = br.ReadString();
+                    m_AssetBundleExtentions = br.ReadString();
+                    
+                    var len = br.ReadInt32();
+                    m_AssetBundleHashes = new string[len];
+                    for(var i = 0; i < len; i++)
+                    {
+                        m_AssetBundleHashes[i] = br.ReadString();
+                    }
+
+                    len = br.ReadInt32();
+                    m_Hash2AssetBundleFilePaths = new Dictionary<string, string>();
+                    for(var i = 0; i < len; i++)
+                    {
+                        var key = br.ReadString();
+                        var value = br.ReadString();
+                        m_Hash2AssetBundleFilePaths.Add(key, value);
+                    }
+
+                    len = br.ReadInt32();
+                    m_AssetBundleFilePath2Hashes = new Dictionary<string, string>();
+                    for (var i = 0; i < len; i++)
+                    {
+                        var key = br.ReadString();
+                        var value = br.ReadString();
+                        m_AssetBundleFilePath2Hashes.Add(key, value);
+                    }
+
+                    len = br.ReadInt32();
+                    m_AssetBundleFilePath2DumpFilePaths = new Dictionary<string, string>();
+                    for (var i = 0; i < len; i++)
+                    {
+                        var key = br.ReadString();
+                        var value = br.ReadString();
+                        m_AssetBundleFilePath2DumpFilePaths.Add(key, value);
+                    }
+                }
+            }
+        }
+    }
 
     public class UnityAssetBundleDumperEditorWindow : EditorWindow
     {
         static class Styles
         {
-            public static readonly GUIContent AssetBundleRootFolder = new GUIContent("Root", "AssetBundle Root Folder Location");
+            public static readonly GUIContent AssetBundleRootFolder = new GUIContent("AssetBundle Root Folder", "AssetBundle Root Folder Location");
             public static readonly GUIContent Browse = new GUIContent("Browse");
             public static readonly GUIContent AssetBundleExtentions = new GUIContent("Search Pattern", "Specifies the filename pattern for the AssetBundle. The default value is \"*.\"and this is the pattern when there is no extension. To specify multiple patterns, separate them with ';'. (example: \"*.;*.txt\")");
-            public static readonly GUIContent CreateDB = new GUIContent("Create DB","Create AssetBundle DataBase");
-            public static readonly GUIContent SelectAssetBundle = new GUIContent("AssetBundle");            
+            public static readonly GUIContent CreateDB = new GUIContent("Dump", "Dump all AssetBundles.");
+            public static readonly GUIContent DeleteDB = new GUIContent("Delete Dump Cache","Delete AssetBundle Dump Data");
+            public static readonly GUIContent SelectAssetBundle = new GUIContent("Target AssetBundle");            
             public static readonly GUIContent Hash = new GUIContent("Hash", "This is the AssetBundle Hash, but you can also select an AssetBundle from the Hash.");
+            public static readonly GUIContent AssetBundleDependency = new GUIContent("AssetBundle Dependency");
+            public static readonly GUIContent CheckDependency = new GUIContent("Check Dependency");
+            public static readonly GUIContent DependencyTreeView = new GUIContent("Dependency Tree", "Tree display of AssetBundle dependencies");
+            public static readonly GUIContent DependencyListView = new GUIContent("Dependency List", "List of dependent AssetBundles");
         }
 
         static UnityAssetBundleDumperEditorWindow m_Instance;
 
-        string m_AssetBundleRootFolder;
-        string m_AssetBundleExtentions = "*.";
-        string[] m_AssetBundleHashes;
-        Dictionary<string, string> m_Hash2AssetBundleFilePaths;
-        Dictionary<string, string> m_AssetBundleFilePath2Hashes;
-        Dictionary<string, string> m_AssetBundleFilePath2DumpFilePaths;
+        AssetBundleDumpData m_AssetBundleDumpData;
+        AssetBundleDumpData assetBundleDumpData
+        {
+            get {
+                if (m_AssetBundleDumpData == null)
+                {
+                    m_AssetBundleDumpData = new AssetBundleDumpData();
+                }
+                return m_AssetBundleDumpData;
+            }
+        }
+
+        string m_AssetBundleRootFolder 
+        {
+            get { return assetBundleDumpData.m_AssetBundleRootFolder; }
+            set { assetBundleDumpData.m_AssetBundleRootFolder = value; }
+        }
+
+        string m_AssetBundleExtentions
+        {
+            get { return assetBundleDumpData.m_AssetBundleExtentions; }
+            set { assetBundleDumpData.m_AssetBundleExtentions = value; }
+        }
+
+        string[] m_AssetBundleHashes
+        {
+            get { return assetBundleDumpData.m_AssetBundleHashes; }
+            set
+            {
+                assetBundleDumpData.m_AssetBundleHashes = value;
+            }
+        }
+        Dictionary<string, string> m_Hash2AssetBundleFilePaths
+        {
+            get { return assetBundleDumpData.m_Hash2AssetBundleFilePaths; }
+            set
+            {
+                assetBundleDumpData.m_Hash2AssetBundleFilePaths = value;
+            }
+        }
+        Dictionary<string, string> m_AssetBundleFilePath2Hashes
+        {
+            get { return assetBundleDumpData.m_AssetBundleFilePath2Hashes; }
+            set
+            {
+                assetBundleDumpData.m_AssetBundleFilePath2Hashes = value;
+            }
+        }
+        Dictionary<string, string> m_AssetBundleFilePath2DumpFilePaths
+        {
+            get { return assetBundleDumpData.m_AssetBundleFilePath2DumpFilePaths; }
+            set { assetBundleDumpData.m_AssetBundleFilePath2DumpFilePaths = value; }
+        }
+
         int m_HashIndex;       
         string m_AssetBundleFilePath = string.Empty;
         string m_DependencyListText;        
@@ -69,23 +239,23 @@ namespace UTJ.UnityAssetBundleDumper.Editor
 
         private void OnEnable()
         {
-            if(m_AssetBundleHashes == null)
+            Debug.Log("OnEnable()");            
+            var dbPath = Path.GetDirectoryName(Application.dataPath);
+            dbPath = Path.Combine(dbPath, "Library");
+            dbPath = Path.Combine(dbPath, "UnityAssetBundleDumper");
+            dbPath = Path.Combine(dbPath, "db");
+
+            if (File.Exists(dbPath))
             {
-                m_AssetBundleHashes = new string[] { string.Empty };
-            }
-            if (m_Hash2AssetBundleFilePaths == null)
-            {
-                m_Hash2AssetBundleFilePaths = new Dictionary<string, string>();
-            }
-            if (m_AssetBundleFilePath2Hashes == null)
-            {
-                m_AssetBundleFilePath2Hashes = new Dictionary<string, string>();
-            }
-            if (m_AssetBundleFilePath2DumpFilePaths == null)
-            {
-                m_AssetBundleFilePath2DumpFilePaths = new Dictionary<string, string>();
+                assetBundleDumpData.Deserialize(dbPath);
             }
         }
+
+        private void OnDisable()
+        {
+            
+        }
+
 
         private void OnGUI()
         {
@@ -93,128 +263,108 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             EditorGUILayout.LabelField(new GUIContent("AssetBunde DataBase"));            
             EditorGUILayout.EndHorizontal();
 
-            EditorGUI.indentLevel++;
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.PrefixLabel(Styles.AssetBundleRootFolder);
-            EditorGUILayout.TextField(m_AssetBundleRootFolder);
-            if (GUILayout.Button(Styles.Browse))
+            using (new EditorGUI.IndentLevelScope())
             {
-                m_AssetBundleRootFolder = EditorUtility.OpenFolderPanel("Set AssetBundle Root Folder Location", m_AssetBundleRootFolder, "");
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.PrefixLabel(Styles.AssetBundleRootFolder);
+                EditorGUILayout.TextField(m_AssetBundleRootFolder);
+                if (GUILayout.Button(Styles.Browse))
+                {
+                    m_AssetBundleRootFolder = EditorUtility.OpenFolderPanel("Set AssetBundle Root Folder Location", m_AssetBundleRootFolder, "");
+                }
+                EditorGUILayout.EndHorizontal();
+
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.PrefixLabel(Styles.AssetBundleExtentions);
+                m_AssetBundleExtentions = EditorGUILayout.TextField(m_AssetBundleExtentions);
+                EditorGUILayout.EndHorizontal();
+
+                EditorGUILayout.BeginHorizontal();
+                if (GUILayout.Button(Styles.CreateDB))
+                {
+                    CreateDB();
+                }
+                if (GUILayout.Button(Styles.DeleteDB))
+                {
+                    var cachePath = Path.GetDirectoryName(Application.dataPath);
+                    cachePath = Path.Combine(cachePath, "Library");
+                    cachePath = Path.Combine(cachePath, "UnityAssetBundleDumper");                    
+                    if (Directory.Exists(cachePath))
+                    {
+                        DeleteDirectoryRecursive(cachePath);
+                    }
+                    m_AssetBundleDumpData = new AssetBundleDumpData();
+                }
+
+                EditorGUILayout.EndHorizontal();
             }
-            EditorGUILayout.EndHorizontal();
-
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.PrefixLabel(Styles.AssetBundleExtentions);
-            m_AssetBundleExtentions = EditorGUILayout.TextField(m_AssetBundleExtentions);
-            EditorGUILayout.EndHorizontal();
-
-            if (GUILayout.Button(Styles.CreateDB))
-            {
-                CreateDB();
-            }
-
-            EditorGUI.indentLevel--;
 
             EditorGUILayout.Separator();
-                                
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.PrefixLabel(Styles.SelectAssetBundle);
-            EditorGUILayout.TextField(m_AssetBundleFilePath);
-            if (GUILayout.Button(Styles.Browse))
-            {                
-                m_AssetBundleFilePath = EditorUtility.OpenFilePanel("Select AssetBundle", m_AssetBundleRootFolder,"");
-                string hash;
-                if(m_AssetBundleFilePath2Hashes.TryGetValue(m_AssetBundleFilePath,out hash))
-                {
-                    for(var i = 0; i < m_AssetBundleHashes.Length; i++)
-                    {
-                        if(m_AssetBundleHashes[i] == hash)
-                        {
-                            m_HashIndex = i;
-                            break;
-                        }
-                    }
-                }
-                else
-                {
-                    EditorUtility.DisplayDialog("Select AssetBundle", $"{m_AssetBundleFilePath} is not registed DB.", "OK");
-                    m_AssetBundleFilePath = string.Empty;
-                }
-            }
-            EditorGUILayout.PrefixLabel(Styles.Hash);
-            if(m_AssetBundleHashes == null || m_AssetBundleHashes.Length == 0)
+
+            EditorGUILayout.LabelField(Styles.AssetBundleDependency);
+
+            using (new EditorGUI.IndentLevelScope())
             {
-                m_AssetBundleHashes = new string[] {""};
-            }
-            m_HashIndex = System.Math.Min(m_HashIndex, m_AssetBundleHashes.Length - 1);
-            m_HashIndex = System.Math.Max(m_HashIndex, 0);
-            var oldHashIndex = m_HashIndex;
-            m_HashIndex = EditorGUILayout.Popup(m_HashIndex, m_AssetBundleHashes);
-            if(m_HashIndex != oldHashIndex)
-            {
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.PrefixLabel(Styles.SelectAssetBundle);
+                EditorGUILayout.TextField(m_AssetBundleFilePath);
+
+                var oldHashIndex = m_HashIndex;
+                if (GUILayout.Button(Styles.Browse))
+                {
+                    BrowseAssetBundleRootFolder();
+                }
+                EditorGUILayout.PrefixLabel(Styles.Hash);
+                if (m_AssetBundleHashes == null || m_AssetBundleHashes.Length == 0)
+                {
+                    m_AssetBundleHashes = new string[] { "" };
+                }
+                
+                m_HashIndex = System.Math.Min(m_HashIndex, m_AssetBundleHashes.Length - 1);
+                m_HashIndex = System.Math.Max(m_HashIndex, 0);
+
                 var hash = m_AssetBundleHashes[m_HashIndex];
                 string filePath;
-                if(m_Hash2AssetBundleFilePaths.TryGetValue(hash, out filePath))
+                if (m_Hash2AssetBundleFilePaths.TryGetValue(hash, out filePath))
                 {
                     m_AssetBundleFilePath = filePath;
                 }
-            }            
-            EditorGUILayout.EndHorizontal();
-
-            if (GUILayout.Button("Dependency"))
-            {
-                var hashTrees = new List<HashTree>();
-                var hash = m_AssetBundleHashes[m_HashIndex];
-                Dependency(0, hash, ref hashTrees);
-                var dependencyList = new List<string>();
-                foreach(var hashTree in hashTrees)
+                if (m_HashIndex != oldHashIndex)
                 {
-                    if(hashTree.depth == 0)
-                    {
-                        continue;
-                    }
-                    if(dependencyList.Contains(hashTree.hash) == false)
-                    {
-                        dependencyList.Add(hashTree.hash);
-                    }
-                }
-                using (StringWriter sw = new StringWriter())
-                {
-                    foreach(var dependency in dependencyList)
-                    {
-                        var line = m_Hash2AssetBundleFilePaths[dependency];
-                        line = line.Remove(0,m_AssetBundleRootFolder.Length+1);
-                        sw.WriteLine(line);
-                    }
-                    m_DependencyListText = sw.ToString();
+                    DoDependency();
                 }
 
-                using (StringWriter sw = new StringWriter())
+                EditorGUI.BeginChangeCheck();
+                m_HashIndex = EditorGUILayout.Popup(m_HashIndex, m_AssetBundleHashes);
+                if (EditorGUI.EndChangeCheck())
                 {
-                    foreach (var hashTree in hashTrees)
-                    {
-                        string line = string.Empty;
-                        for (var i = 0; i < hashTree.depth; i++)
-                        {
-                            line = line + " ";
-                        }
-                        var fname = Path.GetFileName(m_Hash2AssetBundleFilePaths[hashTree.hash]);
-                        line = line + $"{fname}:({hashTree.hash})";
-                        sw.WriteLine(line);
-                    }
-                    m_DependencyTreeText = sw.ToString();
-                }                
+                    DoDependency();
+                }
+
+
+                EditorGUILayout.EndHorizontal();
+
+                
+
+                EditorGUILayout.BeginHorizontal();
+                
+                EditorGUILayout.BeginVertical();
+                EditorGUILayout.LabelField(Styles.DependencyTreeView);                
+                m_DependencyTreeScroll = EditorGUILayout.BeginScrollView(m_DependencyTreeScroll);
+                EditorGUILayout.TextArea(m_DependencyTreeText);
+                EditorGUILayout.EndScrollView();
+                EditorGUILayout.EndVertical();
+
+
+                EditorGUILayout.BeginVertical();
+                EditorGUILayout.LabelField(Styles.DependencyListView);
+                m_DependencyListScroll = EditorGUILayout.BeginScrollView(m_DependencyListScroll);
+                EditorGUILayout.TextArea(m_DependencyListText);
+                EditorGUILayout.EndScrollView();
+                EditorGUILayout.EndVertical();
+
+                EditorGUILayout.EndHorizontal();
             }
-            EditorGUILayout.BeginHorizontal();
-            m_DependencyTreeScroll = EditorGUILayout.BeginScrollView(m_DependencyTreeScroll);
-            EditorGUILayout.TextArea(m_DependencyTreeText);
-            EditorGUILayout.EndScrollView();
-
-            m_DependencyListScroll = EditorGUILayout.BeginScrollView(m_DependencyListScroll) ;
-            EditorGUILayout.TextArea(m_DependencyListText);
-            EditorGUILayout.EndScrollView();
-
-            EditorGUILayout.EndHorizontal();
         }
 
         private void CreateDB()
@@ -294,7 +444,9 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     m_AssetBundleFilePath2Hashes.Add(filePath, serializeFileName);
                     m_AssetBundleFilePath2DumpFilePaths.Add(filePath, dumpFilePath);
                     i++;
-                }                                                
+                }
+
+
             }
             catch(System.ArgumentException e)
             {
@@ -308,6 +460,13 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             {             
                 hashs.Sort();
                 m_AssetBundleHashes = hashs.ToArray();
+
+                var dbPath = Path.GetDirectoryName(Application.dataPath);
+                dbPath = Path.Combine(dbPath, "Library");
+                dbPath = Path.Combine(dbPath, "UnityAssetBundleDumper");
+                dbPath = Path.Combine(dbPath, "db");
+                assetBundleDumpData.Serialize(dbPath);
+
                 EditorUtility.ClearProgressBar();
             }
         }
@@ -387,6 +546,73 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 subDirectory.Delete(true);
             }
             Directory.Delete(path, true);
+        }
+
+        void BrowseAssetBundleRootFolder()
+        {
+            m_AssetBundleFilePath = EditorUtility.OpenFilePanel("Select AssetBundle", m_AssetBundleRootFolder, "");
+            string hash;
+            if (m_AssetBundleFilePath2Hashes.TryGetValue(m_AssetBundleFilePath, out hash))
+            {
+                for (var i = 0; i < m_AssetBundleHashes.Length; i++)
+                {
+                    if (m_AssetBundleHashes[i] == hash)
+                    {
+                        m_HashIndex = i;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                EditorUtility.DisplayDialog("Select AssetBundle", $"{m_AssetBundleFilePath} is not registed DB.", "OK");
+                m_AssetBundleFilePath = string.Empty;
+            }
+        }
+
+        void DoDependency()
+        {
+            var hashTrees = new List<HashTree>();
+            var hash = m_AssetBundleHashes[m_HashIndex];
+            Dependency(0, hash, ref hashTrees);
+            var dependencyList = new List<string>();
+            foreach (var hashTree in hashTrees)
+            {
+                if (hashTree.depth == 0)
+                {
+                    continue;
+                }
+                if (dependencyList.Contains(hashTree.hash) == false)
+                {
+                    dependencyList.Add(hashTree.hash);
+                }
+            }
+            using (StringWriter sw = new StringWriter())
+            {
+                foreach (var dependency in dependencyList)
+                {
+                    var line = m_Hash2AssetBundleFilePaths[dependency];
+                    line = line.Remove(0, m_AssetBundleRootFolder.Length + 1);
+                    sw.WriteLine(line);
+                }
+                m_DependencyListText = sw.ToString();
+            }
+
+            using (StringWriter sw = new StringWriter())
+            {
+                foreach (var hashTree in hashTrees)
+                {
+                    string line = string.Empty;
+                    for (var i = 0; i < hashTree.depth; i++)
+                    {
+                        line = line + " ";
+                    }
+                    var fname = Path.GetFileName(m_Hash2AssetBundleFilePaths[hashTree.hash]);
+                    line = line + $"{fname}:({hashTree.hash})";
+                    sw.WriteLine(line);
+                }
+                m_DependencyTreeText = sw.ToString();
+            }
         }
     }
 }
