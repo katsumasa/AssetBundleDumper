@@ -4,10 +4,44 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 using UTJ.UnityCommandLineTools;
+using System;
 
 
 namespace UTJ.UnityAssetBundleDumper.Editor
 {
+    public class PPtrInfo
+    {
+        public int m_FileID;
+        public long m_PathID;
+    }
+    
+
+    public class AssetBundeInfo
+    {
+        public string m_Name;
+        public PPtrInfo[] m_Preloads;
+        public AssetInfo[] m_AssetInfos;
+    }
+
+
+
+    public class AssetInfo
+    {
+        long m_ID;
+        int m_classID;
+        string m_objectName;
+        public string m_Name;
+        public PPtrInfo[] m_PPtrInfos;
+
+
+        public AssetInfo(long ID, int classID, string objectName)
+        {
+            m_ID = ID;
+            m_classID = classID;
+            m_objectName = objectName;
+        }
+    }
+
     // AssetBundleの依存関係を表す為のClass
     public class HashTree
     {
@@ -30,6 +64,8 @@ namespace UTJ.UnityAssetBundleDumper.Editor
     [System.Serializable]
     public class AssetBundleDumpData
     {
+        readonly string m_Versions = "v.0.0.1";
+
         [SerializeField] public string m_AssetBundleRootFolder;
         [SerializeField] public string m_AssetBundleExtentions = "*.";
         [SerializeField] public string[] m_AssetBundleHashes;
@@ -65,6 +101,9 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             {
                 using (BinaryWriter bw = new BinaryWriter(fs))
                 {
+                    bw.Write(m_Versions);
+
+
                     bw.Write(m_AssetBundleRootFolder);
                     bw.Write(m_AssetBundleExtentions);
 
@@ -98,12 +137,19 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             }                        
         }
 
-        public void Deserialize(string fpath)
+        public bool Deserialize(string fpath)
         {
             using (var fs = new FileStream(fpath, FileMode.Open))
             {
                 using (BinaryReader br = new BinaryReader(fs))
                 {
+                    var versions = br.ReadString();
+                    if(versions != m_Versions)
+                    {
+                        Debug.LogError("");                        
+                        return false;
+                    }
+
                     m_AssetBundleRootFolder = br.ReadString();
                     m_AssetBundleExtentions = br.ReadString();
                     
@@ -142,6 +188,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     }
                 }
             }
+            return true;
         }
     }
 
@@ -160,7 +207,12 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             public static readonly GUIContent CheckDependency = new GUIContent("Check Dependency");
             public static readonly GUIContent DependencyTreeView = new GUIContent("Dependency Tree", "Tree display of AssetBundle dependencies");
             public static readonly GUIContent DependencyListView = new GUIContent("Dependency List", "List of dependent AssetBundles");
+            public static readonly GUIContent Select = new GUIContent("Select","Select AssetBundle");
         }
+
+        static string m_WorkFolder;
+        static string m_DataBaseFilePath;
+        static string m_CasheFolder;
 
         static UnityAssetBundleDumperEditorWindow m_Instance;
 
@@ -231,29 +283,31 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         {
             m_Instance = EditorWindow.GetWindow(typeof(UnityAssetBundleDumperEditorWindow)) as UnityAssetBundleDumperEditorWindow;
             m_Instance.titleContent.text = "UnityAssetBundleDumper";
-            if (m_Instance.m_AssetBundleRootFolder == null)
-            {
-                m_Instance.m_AssetBundleRootFolder = Application.dataPath;
-            }            
         }
 
         private void OnEnable()
         {
-            Debug.Log("OnEnable()");            
-            var dbPath = Path.GetDirectoryName(Application.dataPath);
-            dbPath = Path.Combine(dbPath, "Library");
-            dbPath = Path.Combine(dbPath, "UnityAssetBundleDumper");
-            dbPath = Path.Combine(dbPath, "db");
-
-            if (File.Exists(dbPath))
+            m_Instance = EditorWindow.GetWindow(typeof(UnityAssetBundleDumperEditorWindow)) as UnityAssetBundleDumperEditorWindow;
+            m_Instance.titleContent.text = "UnityAssetBundleDumper";
+            if (m_Instance.m_AssetBundleRootFolder == null)
             {
-                assetBundleDumpData.Deserialize(dbPath);
+                m_Instance.m_AssetBundleRootFolder = Application.dataPath;
+            }
+            m_WorkFolder = Path.Combine(Path.GetDirectoryName(Application.dataPath), "Library", "UnityAssetBundleDumper");
+            m_DataBaseFilePath = Path.Combine(m_WorkFolder, "db");
+            m_CasheFolder = Path.Combine(m_WorkFolder, "caches");
+
+            if (File.Exists(m_DataBaseFilePath))
+            {
+                if(assetBundleDumpData.Deserialize(m_DataBaseFilePath) == false)
+                {
+                    DeleteDirectoryRecursive(m_WorkFolder);
+                }
             }
         }
 
         private void OnDisable()
-        {
-            
+        {            
         }
 
 
@@ -283,15 +337,13 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 if (GUILayout.Button(Styles.CreateDB))
                 {
                     CreateDB();
+                    AnalyzeDumpFiles();
                 }
                 if (GUILayout.Button(Styles.DeleteDB))
                 {
-                    var cachePath = Path.GetDirectoryName(Application.dataPath);
-                    cachePath = Path.Combine(cachePath, "Library");
-                    cachePath = Path.Combine(cachePath, "UnityAssetBundleDumper");                    
-                    if (Directory.Exists(cachePath))
+                    if (Directory.Exists(m_WorkFolder))
                     {
-                        DeleteDirectoryRecursive(cachePath);
+                        DeleteDirectoryRecursive(m_WorkFolder);
                     }
                     m_AssetBundleDumpData = new AssetBundleDumpData();
                 }
@@ -310,7 +362,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 EditorGUILayout.TextField(m_AssetBundleFilePath);
 
                 var oldHashIndex = m_HashIndex;
-                if (GUILayout.Button(Styles.Browse))
+                if (GUILayout.Button(Styles.Select))
                 {
                     BrowseAssetBundleRootFolder();
                 }
@@ -340,29 +392,29 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 {
                     DoDependency();
                 }
-
-
                 EditorGUILayout.EndHorizontal();
-
                 
-
                 EditorGUILayout.BeginHorizontal();
-                
-                EditorGUILayout.BeginVertical();
-                EditorGUILayout.LabelField(Styles.DependencyTreeView);                
-                m_DependencyTreeScroll = EditorGUILayout.BeginScrollView(m_DependencyTreeScroll);
-                EditorGUILayout.TextArea(m_DependencyTreeText);
-                EditorGUILayout.EndScrollView();
-                EditorGUILayout.EndVertical();
+                {
+                    EditorGUILayout.BeginVertical();
+                    {
+                        EditorGUILayout.LabelField(Styles.DependencyTreeView);
+                        m_DependencyTreeScroll = EditorGUILayout.BeginScrollView(m_DependencyTreeScroll);
+                        EditorGUILayout.TextArea(m_DependencyTreeText);
+                        EditorGUILayout.EndScrollView();
+                    }
+                    EditorGUILayout.EndVertical();
 
 
-                EditorGUILayout.BeginVertical();
-                EditorGUILayout.LabelField(Styles.DependencyListView);
-                m_DependencyListScroll = EditorGUILayout.BeginScrollView(m_DependencyListScroll);
-                EditorGUILayout.TextArea(m_DependencyListText);
-                EditorGUILayout.EndScrollView();
-                EditorGUILayout.EndVertical();
-
+                    EditorGUILayout.BeginVertical();
+                    {
+                        EditorGUILayout.LabelField(Styles.DependencyListView);
+                        m_DependencyListScroll = EditorGUILayout.BeginScrollView(m_DependencyListScroll);
+                        EditorGUILayout.TextArea(m_DependencyListText);
+                        EditorGUILayout.EndScrollView();
+                    }
+                    EditorGUILayout.EndVertical();
+                }
                 EditorGUILayout.EndHorizontal();
             }
         }
@@ -380,17 +432,12 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             {
                 var assetbundles = Directory.GetFiles(m_AssetBundleRootFolder, ext, SearchOption.AllDirectories);                
                 fpaths.AddRange(assetbundles);
-            }
-
-            var cachePath = Path.GetDirectoryName(Application.dataPath);
-            cachePath = Path.Combine(cachePath, "Library");
-            cachePath = Path.Combine(cachePath, "UnityAssetBundleDumper");
-            cachePath = Path.Combine(cachePath, "Cache");
-            if (Directory.Exists(cachePath))
+            }            
+            if (Directory.Exists(m_CasheFolder))
             {
-                DeleteDirectoryRecursive(cachePath);                
+                DeleteDirectoryRecursive(m_CasheFolder);
             }
-            Directory.CreateDirectory(cachePath);
+            Directory.CreateDirectory(m_CasheFolder);
 
             var webExtractExec = new WebExtractExec();
             var b2t = new Binary2TextExec();
@@ -406,12 +453,12 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     EditorUtility.DisplayProgressBar("UnityAssetBundleDumper", $"Create DB... {i}/{fpaths.Count}",progress);
                     
                     // 同じ名前を持つAssetBundleが存在するケースがあるので、ランダムな名前のディレクトリを追加する
-                    var dstFilePath = Path.Combine(cachePath, Path.GetFileNameWithoutExtension(Path.GetRandomFileName()));                                        
+                    var dstFilePath = Path.Combine(m_CasheFolder, Path.GetFileNameWithoutExtension(Path.GetRandomFileName()));                                        
                     Directory.CreateDirectory(dstFilePath);
                     dstFilePath = Path.Combine(dstFilePath,fileName);
                     var unpackFolder = dstFilePath + "_data";                    
 
-                    File.Copy(fpath, Path.Combine(cachePath, dstFilePath), true);
+                    File.Copy(fpath, Path.Combine(m_CasheFolder, dstFilePath), true);
                     var result = webExtractExec.Exec(dstFilePath);
                     File.Delete(dstFilePath);
                     if(result != 0)
@@ -445,8 +492,6 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     m_AssetBundleFilePath2DumpFilePaths.Add(filePath, dumpFilePath);
                     i++;
                 }
-
-
             }
             catch(System.ArgumentException e)
             {
@@ -459,14 +504,8 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             finally
             {             
                 hashs.Sort();
-                m_AssetBundleHashes = hashs.ToArray();
-
-                var dbPath = Path.GetDirectoryName(Application.dataPath);
-                dbPath = Path.Combine(dbPath, "Library");
-                dbPath = Path.Combine(dbPath, "UnityAssetBundleDumper");
-                dbPath = Path.Combine(dbPath, "db");
-                assetBundleDumpData.Serialize(dbPath);
-
+                m_AssetBundleHashes = hashs.ToArray();                
+                assetBundleDumpData.Serialize(m_DataBaseFilePath);
                 EditorUtility.ClearProgressBar();
             }
         }
@@ -475,7 +514,6 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         bool Dependency(int depth,string hash,ref List<HashTree> hashTrees)
         {
             string fpath;
-
             var result = m_Hash2AssetBundleFilePaths.TryGetValue(hash, out fpath);
             if (result == false)
             {
@@ -614,5 +652,147 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 m_DependencyTreeText = sw.ToString();
             }
         }
+
+
+        void AnalyzeDumpFiles()
+        {
+            foreach(var hash in m_AssetBundleHashes)
+            {
+                var fpath = m_Hash2AssetBundleFilePaths[hash];
+                var dump = m_AssetBundleFilePath2DumpFilePaths[fpath];
+                AnalyzeDumpFile(dump);
+            }
+        }
+
+
+        AssetBundeInfo AnalyzeDumpFile(string fpath)
+        {
+            var assetBundeInfo = new AssetBundeInfo();
+
+            using (StreamReader sr = new StreamReader(new FileStream(fpath, FileMode.Open)))
+            {
+                while (true)
+                {
+                    var line = sr.ReadLine();
+                    if (line == null)
+                    {
+                        break;
+                    }
+                    if (line.StartsWith("ID:"))
+                    {
+                        var words = line.Split(new string[] { " ", "　" }, StringSplitOptions.RemoveEmptyEntries);
+                        var id = long.Parse(words[1]);
+                        var classID = int.Parse(words[3].TrimEnd(')'));
+                        if (id == 1)
+                        {
+                            line = sr.ReadLine();
+                            GetLine(ref line);
+                            assetBundeInfo.m_Name = line.Split("\"")[1];
+                            sr.ReadLine();
+                            line = sr.ReadLine();
+                            words = line.Split(new string[] { " ", "　" }, StringSplitOptions.RemoveEmptyEntries);
+                            assetBundeInfo.m_Preloads = new PPtrInfo[int.Parse(words[1])];
+                            for(var i = 0; i < assetBundeInfo.m_Preloads.Length; i++)
+                            {
+                                assetBundeInfo.m_Preloads[i] = new PPtrInfo();
+                                for (var j = 0; j < 2; j++)
+                                {
+                                    sr.ReadLine();
+                                    line = sr.ReadLine();
+                                    words = line.Split(new string[] { " ", "　" }, StringSplitOptions.RemoveEmptyEntries);
+                                    if (j == 0)
+                                    {
+                                        assetBundeInfo.m_Preloads[i].m_FileID = int.Parse(words[1]);
+                                    }
+                                    else
+                                    {
+                                        assetBundeInfo.m_Preloads[i].m_PathID = long.Parse(words[1]);
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            var assetInfo = new AssetInfo(id, classID, words[4]);
+                            CheckProperty(sr, assetInfo);
+                        }
+                    }
+                }
+            }
+            return assetBundeInfo;
+        }
+
+        int GetLine(ref string line)
+        {
+            int indent = 0;
+            while (line.StartsWith("\t"))
+            {
+                line = line.Substring(1);                                
+                indent++;
+            }
+            return indent;
+        }
+
+
+        // プロパティチェック
+        void CheckProperty(StreamReader sr,AssetInfo assetInfo)
+        {
+            var pptrInfoList = new List<PPtrInfo>();
+            while (true)
+            {
+                var position = sr.BaseStream.Position;
+                var line = sr.ReadLine();
+                
+                // ファイルの終端及びID:から始まるラインの場合は終了
+                if(line == null)
+                {
+                    break;
+                }
+                if(line == String.Empty)
+                {
+                    continue;
+                }
+                var indent = GetLine(ref line);                
+                var words = line.Split(new string[] { " ", "　" }, StringSplitOptions.RemoveEmptyEntries);
+                if (words[0] == "ID:")
+                {
+                    sr.BaseStream.Position = position;
+                    break;
+                }
+
+                if (words[0] == "m_Name")
+                {
+                    var name = line.Split("\"")[1];
+                    assetInfo.m_Name = name;
+                }
+                if (words[1].StartsWith("(PPtr"))
+                {
+                    // PPtrの次の行はm_FileID、その次はm_PathIDで固定されている                    
+                    var pptrInfo = new PPtrInfo();
+                    for(var i = 0; i < 2; i++)
+                    {
+                        line = sr.ReadLine();
+                        indent = GetLine(ref line);
+                        words = line.Split(new string[] { " ", "　" }, StringSplitOptions.RemoveEmptyEntries);
+                        if((i == 0) && (words[0] == "m_FileID"))
+                        {
+                            pptrInfo.m_FileID = int.Parse(words[1]);
+                        }
+                        else if((i == 1) && (words[0] == "m_PathID"))
+                        {
+                            pptrInfo.m_PathID = long.Parse(words[1]);
+                        }
+                        else
+                        {
+                            Debug.LogError($"{line}");
+                        }
+                    }                    
+                    pptrInfoList.Add(pptrInfo);
+                }
+            }
+            assetInfo.m_PPtrInfos = pptrInfoList.ToArray();            
+        }
+
+
     }
 }
