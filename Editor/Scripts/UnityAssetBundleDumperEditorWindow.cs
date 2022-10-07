@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
+using UnityEditor.IMGUI.Controls;
 using UTJ.UnityCommandLineTools;
 using System;
 
@@ -381,6 +382,9 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         Vector2 m_DependencyTreeScroll;
         Vector2 m_DependencyListScroll;
 
+        [SerializeField] TreeViewState m_DependencyTreeViewState;
+        DependencyTreeView m_DependencyTreeView;
+
 
         [MenuItem("Window/UTJ/UnityAssetBundleDumper")]
         public static void Open()
@@ -408,6 +412,12 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     DeleteDirectoryRecursive(m_WorkFolder);
                 }
             }
+
+            if(m_DependencyTreeViewState == null)
+            {
+                m_DependencyTreeViewState = new TreeViewState();
+            }
+            m_DependencyTreeView = new DependencyTreeView(m_DependencyTreeViewState);
         }
 
         private void OnDisable()
@@ -487,14 +497,14 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 }
                 if (m_HashIndex != oldHashIndex)
                 {
-                    DoDependency();
+                    m_DependencyTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);                    
                 }
 
                 EditorGUI.BeginChangeCheck();
                 m_HashIndex = EditorGUILayout.Popup(m_HashIndex, m_AssetBundleHashes);
                 if (EditorGUI.EndChangeCheck())
                 {
-                    DoDependency();
+                    m_DependencyTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);                    
                 }
                 EditorGUILayout.EndHorizontal();
                 
@@ -504,7 +514,11 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     {
                         EditorGUILayout.LabelField(Styles.DependencyTreeView);
                         m_DependencyTreeScroll = EditorGUILayout.BeginScrollView(m_DependencyTreeScroll);
-                        EditorGUILayout.TextArea(m_DependencyTreeText);
+                        //EditorGUILayout.TextArea(m_DependencyTreeText);
+                        if (m_DependencyTreeView.IsBuild)
+                        {
+                            m_DependencyTreeView.OnGUI(new Rect(0, 0, position.width, position.height));
+                        }
                         EditorGUILayout.EndScrollView();
                     }
                     EditorGUILayout.EndVertical();
