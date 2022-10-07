@@ -1,4 +1,4 @@
-using System.IO;
+ï»¿using System.IO;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -126,7 +126,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
 
     }
 
-    // AssetBundle‚ÌˆË‘¶ŠÖŒW‚ğ•\‚·ˆ×‚ÌClass
+    // AssetBundleã®ä¾å­˜é–¢ä¿‚ã‚’è¡¨ã™ç‚ºã®Class
     public class HashTree
     {
         public int depth { get { return m_Depth; } }
@@ -155,7 +155,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         [SerializeField] public string[] m_AssetBundleHashes;
         [SerializeField] public Dictionary<string, string> m_Hash2AssetBundleFilePaths;
         [SerializeField] public Dictionary<string, string> m_AssetBundleFilePath2Hashes;
-        [SerializeField] public Dictionary<string, string> m_AssetBundleFilePath2DumpFilePaths;
+        [SerializeField] public Dictionary<string, string> m_Hash2DumpFilePaths;
         [SerializeField] public Dictionary<string, AssetBundeInfo> m_Hash2AssetBundleBundeInfo;
 
 
@@ -175,9 +175,9 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             {
                 m_AssetBundleFilePath2Hashes = new Dictionary<string, string>();
             }
-            if (m_AssetBundleFilePath2DumpFilePaths == null)
+            if (m_Hash2DumpFilePaths == null)
             {
-                m_AssetBundleFilePath2DumpFilePaths = new Dictionary<string, string>();
+                m_Hash2DumpFilePaths = new Dictionary<string, string>();
             }
             if(m_Hash2AssetBundleBundeInfo == null)
             {
@@ -217,8 +217,8 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                         bw.Write(kv.Value);
                     }
 
-                    bw.Write(m_AssetBundleFilePath2DumpFilePaths.Count);
-                    foreach (var kv in m_AssetBundleFilePath2DumpFilePaths)
+                    bw.Write(m_Hash2DumpFilePaths.Count);
+                    foreach (var kv in m_Hash2DumpFilePaths)
                     {
                         bw.Write(kv.Key);
                         bw.Write(kv.Value);
@@ -275,12 +275,12 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     }
 
                     len = br.ReadInt32();
-                    m_AssetBundleFilePath2DumpFilePaths = new Dictionary<string, string>();
+                    m_Hash2DumpFilePaths = new Dictionary<string, string>();
                     for (var i = 0; i < len; i++)
                     {
                         var key = br.ReadString();
                         var value = br.ReadString();
-                        m_AssetBundleFilePath2DumpFilePaths.Add(key, value);
+                        m_Hash2DumpFilePaths.Add(key, value);
                     }
                     len = br.ReadInt32();
                     m_Hash2AssetBundleBundeInfo = new Dictionary<string, AssetBundeInfo>();
@@ -369,10 +369,10 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 assetBundleDumpData.m_AssetBundleFilePath2Hashes = value;
             }
         }
-        Dictionary<string, string> m_AssetBundleFilePath2DumpFilePaths
+        Dictionary<string, string> m_Hash2DumpFilePaths
         {
-            get { return assetBundleDumpData.m_AssetBundleFilePath2DumpFilePaths; }
-            set { assetBundleDumpData.m_AssetBundleFilePath2DumpFilePaths = value; }
+            get { return assetBundleDumpData.m_Hash2DumpFilePaths; }
+            set { assetBundleDumpData.m_Hash2DumpFilePaths = value; }
         }
 
         int m_HashIndex;       
@@ -497,7 +497,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 }
                 if (m_HashIndex != oldHashIndex)
                 {
-                    m_DependencyTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);                    
+                    m_DependencyTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
                 }
 
                 EditorGUI.BeginChangeCheck();
@@ -541,7 +541,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         {            
             m_Hash2AssetBundleFilePaths.Clear();
             m_AssetBundleFilePath2Hashes.Clear();
-            m_AssetBundleFilePath2DumpFilePaths.Clear();            
+            m_Hash2DumpFilePaths.Clear();            
             m_AssetBundleHashes = new string[] { string.Empty };            
 
             var fpaths = new List<string>();
@@ -559,21 +559,22 @@ namespace UTJ.UnityAssetBundleDumper.Editor
 
             var webExtractExec = new WebExtractExec();
             var b2t = new Binary2TextExec();
-            var i = 0;
-            var filePaths = new List<string>();
+            var no = 0;            
             var hashs = new List<string>();
             try
             {
                 foreach (var fpath in fpaths)
                 {
                     var fileName = Path.GetFileName(fpath);
-                    var progress = (float)i / (float)fpaths.Count;
-                    EditorUtility.DisplayProgressBar("UnityAssetBundleDumper", $"Create DB... {i}/{fpaths.Count}",progress);
+                    var progress = (float)no / (float)fpaths.Count;
+                    EditorUtility.DisplayProgressBar("UnityAssetBundleDumper", $"Create DB... {no}/{fpaths.Count}",progress);
                     
-                    // “¯‚¶–¼‘O‚ğ‚ÂAssetBundle‚ª‘¶İ‚·‚éƒP[ƒX‚ª‚ ‚é‚Ì‚ÅAƒ‰ƒ“ƒ_ƒ€‚È–¼‘O‚ÌƒfƒBƒŒƒNƒgƒŠ‚ğ’Ç‰Á‚·‚é
-                    var dstFilePath = Path.Combine(m_CasheFolder, Path.GetFileNameWithoutExtension(Path.GetRandomFileName()));                                        
-                    Directory.CreateDirectory(dstFilePath);
-                    dstFilePath = Path.Combine(dstFilePath,fileName);
+                    // åŒã˜åå‰ã‚’æŒã¤AssetBundleãŒå­˜åœ¨ã™ã‚‹ã‚±ãƒ¼ã‚¹ãŒã‚ã‚‹ã®ã§ã€ãƒ©ãƒ³ãƒ€ãƒ ãªåå‰ã®ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªã‚’è¿½åŠ ã™ã‚‹
+                    var folderPath = Path.Combine(m_CasheFolder, Path.GetFileNameWithoutExtension(Path.GetRandomFileName()));
+                    
+                    
+                    Directory.CreateDirectory(folderPath);
+                    var dstFilePath = Path.Combine(folderPath, fileName);
                     var unpackFolder = dstFilePath + "_data";                    
 
                     File.Copy(fpath, Path.Combine(m_CasheFolder, dstFilePath), true);
@@ -586,35 +587,49 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     }
                     
                     var serializeFiles = Directory.GetFiles(unpackFolder, "CAB-*.", SearchOption.TopDirectoryOnly);
-                    if(serializeFiles.Length > 1)
+                    if(serializeFiles.Length == 0)
                     {
-                        Debug.LogWarning($"Serialize File number is bigger than 1. ({fpath})");
-                    }
-                    var serializeFileName = Path.GetFileName(serializeFiles[0]);                    
-                    var dumpFilePath = dstFilePath + ".txt";
-                    result = b2t.Exec(serializeFiles[0], dumpFilePath,"");
-                    if(result != 0)
-                    {
-                        EditorUtility.DisplayDialog("Bin2Text Fail", b2t.output, "OK");
-                        Debug.Log(b2t.output);
-                        throw new System.InvalidProgramException();
+                        serializeFiles = Directory.GetFiles(unpackFolder, "BuildPlayer-*", SearchOption.TopDirectoryOnly);
                     }
 
-                    var filePath = fpath.Replace('\\','/');
-                    dumpFilePath = dumpFilePath.Replace('\\', '/');
+                    
+                    for (var i = 0; i < serializeFiles.Length; i++)
+                    {
+                        var serializeFileName = Path.GetFileName(serializeFiles[i]);
 
-                    filePaths.Add(filePath);
-                    hashs.Add(serializeFileName);
-                    m_Hash2AssetBundleFilePaths.Add(serializeFileName, filePath);
-                    m_AssetBundleFilePath2Hashes.Add(filePath, serializeFileName);
-                    m_AssetBundleFilePath2DumpFilePaths.Add(filePath, dumpFilePath);
-                    i++;
+                        if(Path.GetExtension(serializeFileName) == ".resS")
+                        {
+                            continue;
+                        }
+
+                        var dumpFilePath = Path.Combine(folderPath, serializeFileName) + ".txt";
+                        result = b2t.Exec(serializeFiles[i], dumpFilePath, "");
+                        if (result != 0)
+                        {
+                            EditorUtility.DisplayDialog("Bin2Text Fail", b2t.output, "OK");
+                            Debug.Log(b2t.output);
+                            throw new System.InvalidProgramException();
+                        }
+
+                        var filePath = fpath.Replace('\\', '/');
+                        dumpFilePath = dumpFilePath.Replace('\\', '/');
+                        
+                        hashs.Add(serializeFileName);
+                        m_Hash2AssetBundleFilePaths.Add(serializeFileName, filePath);
+                        if (i == 0)
+                        {
+                            m_AssetBundleFilePath2Hashes.Add(filePath, serializeFileName);
+                        }
+                        m_Hash2DumpFilePaths.Add(serializeFileName, dumpFilePath);
+                        
+
+                    }
+                    no++;
                 }
             }
             catch(System.ArgumentException e)
             {
-                Debug.LogException(e);
-                Debug.Log(filePaths[i]);
+                Debug.LogException(e);                
             }
             catch(System.Exception e)
             {
@@ -639,7 +654,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 return false;
             }
             string dump;
-            result = m_AssetBundleFilePath2DumpFilePaths.TryGetValue(fpath, out dump);
+            result = m_Hash2DumpFilePaths.TryGetValue(hash, out dump);
             if(result == false)
             {
                 return false;
@@ -779,7 +794,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             foreach (var hash in m_AssetBundleHashes)
             {
                 var fpath = m_Hash2AssetBundleFilePaths[hash];
-                var dump = m_AssetBundleFilePath2DumpFilePaths[fpath];
+                var dump = m_Hash2DumpFilePaths[hash];
                 var assetBundleInfo = AnalyzeDumpFile(dump);
                 assetBundleDumpData.m_Hash2AssetBundleBundeInfo.Add(hash, assetBundleInfo);
             }
@@ -806,7 +821,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     }
                     if (line.StartsWith("ID:"))
                     {
-                        var words = line.Split(new string[] { " ", "@" }, StringSplitOptions.RemoveEmptyEntries);
+                        var words = line.Split(new string[] { " ", "ã€€" }, StringSplitOptions.RemoveEmptyEntries);
                         var id = long.Parse(words[1]);
                         var classID = int.Parse(words[3].TrimEnd(')'));
                         if (id == 1)
@@ -816,7 +831,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                             assetBundeInfo.m_Name = line.Split("\"")[1];
                             sr.ReadLine();
                             line = sr.ReadLine();
-                            words = line.Split(new string[] { " ", "@" }, StringSplitOptions.RemoveEmptyEntries);
+                            words = line.Split(new string[] { " ", "ã€€" }, StringSplitOptions.RemoveEmptyEntries);
                             assetBundeInfo.m_Preloads = new PPtrInfo[int.Parse(words[1])];
                             for (var i = 0; i < assetBundeInfo.m_Preloads.Length; i++)
                             {
@@ -827,7 +842,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                                 {
                                     line = sr.ReadLine();
                                     GetLine(ref line);
-                                    words = line.Split(new string[] { " ", "@" }, StringSplitOptions.RemoveEmptyEntries);
+                                    words = line.Split(new string[] { " ", "ã€€" }, StringSplitOptions.RemoveEmptyEntries);
                                     try
                                     {
                                         if (j == 0)
@@ -876,7 +891,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         }
 
 
-        // ƒvƒƒpƒeƒBƒ`ƒFƒbƒN
+        // ãƒ—ãƒ­ãƒ‘ãƒ†ã‚£ãƒã‚§ãƒƒã‚¯
         string CheckProperty(StreamReader sr,AssetInfo assetInfo)
         {
             var pptrInfoList = new List<PPtrInfo>();
@@ -884,7 +899,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             {                
                 var line = sr.ReadLine();
                 var backup = line;
-                // ƒtƒ@ƒCƒ‹‚ÌI’[‚Ìê‡‚ÍI—¹
+                // ãƒ•ã‚¡ã‚¤ãƒ«ã®çµ‚ç«¯ã®å ´åˆã¯çµ‚äº†
                 if (line == null)
                 {
                     assetInfo.m_PPtrInfos = pptrInfoList.ToArray();
@@ -895,8 +910,8 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     continue;
                 }
                 var indent = GetLine(ref line);                
-                var words = line.Split(new string[] { " ", "@" }, StringSplitOptions.RemoveEmptyEntries);                
-                // "ID:"‚©‚çn‚Ü‚éê‡AŸ‚ÌAsset‚Ìî•ñ‚É‚È‚éˆ×Aƒ‰ƒCƒ““Ç‚İ‚İ‚ğw‚µ–ß‚µ‚ÄI—¹
+                var words = line.Split(new string[] { " ", "ã€€" }, StringSplitOptions.RemoveEmptyEntries);                
+                // "ID:"ã‹ã‚‰å§‹ã¾ã‚‹å ´åˆã€æ¬¡ã®Assetã®æƒ…å ±ã«ãªã‚‹ç‚ºã€ãƒ©ã‚¤ãƒ³èª­ã¿è¾¼ã¿ã‚’æŒ‡ã—æˆ»ã—ã¦çµ‚äº†
                 if (words[0] == "ID:")
                 {
                     assetInfo.m_PPtrInfos = pptrInfoList.ToArray();
@@ -909,13 +924,13 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 } 
                 else if (words[1].StartsWith("(PPtr"))
                 {
-                    // PPtr‚ÌŸ‚Ìs‚Ím_FileIDA‚»‚ÌŸ‚Ím_PathID‚ÅŒÅ’è‚³‚ê‚Ä‚¢‚é                    
+                    // PPtrã®æ¬¡ã®è¡Œã¯m_FileIDã€ãã®æ¬¡ã¯m_PathIDã§å›ºå®šã•ã‚Œã¦ã„ã‚‹                    
                     var pptrInfo = new PPtrInfo();
                     for(var i = 0; i < 2; i++)
                     {                        
                         line = sr.ReadLine();                        
                         indent = GetLine(ref line);
-                        words = line.Split(new string[] { " ", "@" }, StringSplitOptions.RemoveEmptyEntries);
+                        words = line.Split(new string[] { " ", "ã€€" }, StringSplitOptions.RemoveEmptyEntries);
                         if((i == 0) && (words[0] == "m_FileID"))
                         {
                             pptrInfo.m_FileID = int.Parse(words[1]);

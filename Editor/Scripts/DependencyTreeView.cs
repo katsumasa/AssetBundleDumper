@@ -31,7 +31,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         {
             var root = new TreeViewItem {id = 0, depth = -1,displayName = "Root" };
             var fpath = m_AssetBundleDumpData.m_Hash2AssetBundleFilePaths[m_AssetBundleHash];
-            var item = new TreeViewItem { id = root.id+1, depth = root.depth + 1, displayName = Path.GetFileName(fpath) };
+            var item = new TreeViewItem { id = root.id+1, depth = root.depth + 1, displayName = Path.GetFileName(fpath) + "(" + m_AssetBundleHash  + ")"};
             root.AddChild(item);            
             int id = item.id + 1;
             Dependency(item, m_AssetBundleHash, ref id);
@@ -56,7 +56,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 return false;
             }
             string dumpFilePath;
-            result = m_AssetBundleDumpData.m_AssetBundleFilePath2DumpFilePaths.TryGetValue(assetBundleFilePath, out dumpFilePath);
+            result = m_AssetBundleDumpData.m_Hash2DumpFilePaths.TryGetValue(hash, out dumpFilePath);
             if (!result)
             {
                 return false;
@@ -79,12 +79,18 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     {
                         continue;
                     }
+                    // path(1): "archive:/BuildPlayer-SampleScene/BuildPlayer-SampleScene.sharedAssets" GUID: 00000000000000000000000000000000 Type: 0
                     // path(2): "archive:/CAB-56bb25c0e5ea7af2a5c41a1994f98568/CAB-56bb25c0e5ea7af2a5c41a1994f98568" GUID: 00000000000000000000000000000000 Type: 0                    
-                    string[] words = line.Split('/');                    
-                    var childHash = words[1];
+                    string[] words = line.Split('"');
+                    words = words[1].Split('/');
+                    if (words[0] == "Library")
+                    {
+                        continue ;
+                    }
+                    var childHash = words[2];
                     var fpath = m_AssetBundleDumpData.m_Hash2AssetBundleFilePaths[childHash];
                     
-                    var item = new TreeViewItem { id = ++_id, depth = parentItem.depth+1, displayName = Path.GetFileName(fpath) };
+                    var item = new TreeViewItem { id = ++_id, depth = parentItem.depth+1, displayName = Path.GetFileName(fpath) + "(" + childHash + ")"};
                     parentItem.AddChild(item);
                     Dependency(item, childHash, ref _id);
                 }
