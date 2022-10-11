@@ -125,7 +125,8 @@ namespace UTJ.UnityAssetBundleDumper.Editor
 
                         var item = new DependencyTreeViewItem { id = ++_id, depth = parentItem.depth + 1, hash = childHash, displayName = Path.GetFileName(fpath) + "(" + childHash + ")" };
                         parentItem.AddChild(item);
-                        if (!m_DependencyFileList.Contains(item.displayName))
+                        // 自分自身は依存リストには含めない
+                        if (!m_DependencyFileList.Contains(item.displayName) && item.hash != m_AssetBundleHash)
                         {
                             m_DependencyFileList.Add(item.displayName);
                         }
