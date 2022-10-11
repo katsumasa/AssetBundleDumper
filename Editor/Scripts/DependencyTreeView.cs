@@ -10,6 +10,19 @@ using System.Security.Cryptography;
 namespace UTJ.UnityAssetBundleDumper.Editor
 {
 
+    public class DependencyTreeViewItem : TreeViewItem
+    {
+        public string m_Hash;
+        public string hash
+        {
+            get { return m_Hash; }
+            set { m_Hash = value; }
+        }
+
+        public DependencyTreeViewItem() : base() { }
+    }
+
+
     public class DependencyTreeView : TreeView
     {
         AssetBundleDumpData m_AssetBundleDumpData;
@@ -29,9 +42,9 @@ namespace UTJ.UnityAssetBundleDumper.Editor
 
         protected override TreeViewItem BuildRoot()
         {
-            var root = new TreeViewItem {id = 0, depth = -1,displayName = "Root" };
+            var root = new DependencyTreeViewItem { id = 0, depth = -1,hash = string.Empty,displayName = "Root" };
             var fpath = m_AssetBundleDumpData.m_Hash2AssetBundleFilePaths[m_AssetBundleHash];
-            var item = new TreeViewItem { id = root.id+1, depth = root.depth + 1, displayName = Path.GetFileName(fpath) + "(" + m_AssetBundleHash  + ")"};
+            var item = new DependencyTreeViewItem { id = root.id+1, depth = root.depth + 1, hash = m_AssetBundleHash, displayName = Path.GetFileName(fpath) + "(" + m_AssetBundleHash  + ")"};
             root.AddChild(item);            
             int id = item.id + 1;
             Dependency(item, m_AssetBundleHash, ref id);
@@ -46,7 +59,13 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             m_IsBuild = true;
         }
 
-
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="parentItem">êeÇÃTreeViewItem</param>
+        /// <param name="hash"></param>
+        /// <param name="_id">TreeViewItemÇÃID</param>
+        /// <returns></returns>
         bool Dependency(TreeViewItem parentItem,string hash,ref int _id)
         {
             string assetBundleFilePath;
@@ -90,9 +109,26 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     var childHash = words[2];
                     var fpath = m_AssetBundleDumpData.m_Hash2AssetBundleFilePaths[childHash];
                     
-                    var item = new TreeViewItem { id = ++_id, depth = parentItem.depth+1, displayName = Path.GetFileName(fpath) + "(" + childHash + ")"};
+                    var item = new DependencyTreeViewItem { id = ++_id, depth = parentItem.depth+1,hash = childHash, displayName = Path.GetFileName(fpath) + "(" + childHash + ")"};
                     parentItem.AddChild(item);
-                    Dependency(item, childHash, ref _id);
+
+                    // èzä¬éQè∆ÇµÇƒÇ¢ÇÈèÍçáÇÕÅAèàóùÇë≈ÇøêÿÇÈ
+                    bool IsCirculation = false;
+                    var checkItem = (DependencyTreeViewItem)parentItem.parent;
+                    while (checkItem != null)
+                    {
+                        if(checkItem.hash == childHash)
+                        {
+                            IsCirculation = true;
+                            Debug.LogWarning($"{item.displayName} is circular reference.");                            
+                            break;
+                        }
+                        checkItem = (DependencyTreeViewItem)checkItem.parent;
+                    }
+                    if (!IsCirculation)
+                    {
+                        Dependency(item, childHash, ref _id);
+                    }
                 }
             }
             return true;
