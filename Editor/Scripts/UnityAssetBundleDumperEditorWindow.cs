@@ -376,8 +376,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         }
 
         int m_HashIndex;       
-        string m_AssetBundleFilePath = string.Empty;
-        string m_DependencyListText;                
+        string m_AssetBundleFilePath = string.Empty;        
         Vector2 m_DependencyTreeScroll;
         Vector2 m_DependencyListScroll;
 
@@ -496,16 +495,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 }
                 if (m_HashIndex != oldHashIndex)
                 {
-                    m_DependencyTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
-                    using (StringWriter sw = new StringWriter())
-                    {
-                        foreach (var dependency in m_DependencyTreeView.DependencyFileList)
-                        {                            
-                            sw.WriteLine(dependency);
-                        }
-                        m_DependencyListText = sw.ToString();
-                    }
-
+                    m_DependencyTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);                    
                 }
 
                 EditorGUI.BeginChangeCheck();
@@ -513,15 +503,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 if (EditorGUI.EndChangeCheck())
                 {
                     // 依存関係のTree表示をビルド
-                    m_DependencyTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
-                    using (StringWriter sw = new StringWriter())
-                    {
-                        foreach (var dependency in m_DependencyTreeView.DependencyFileList)
-                        {
-                            sw.WriteLine(dependency);
-                        }
-                        m_DependencyListText = sw.ToString();
-                    }
+                    m_DependencyTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);                    
                 }
                 EditorGUILayout.EndHorizontal();
                 
@@ -552,11 +534,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                             {
                                 EditorGUILayout.LabelField(dependency);
                             }
-                        }
-                        
-                        
-
-                        //EditorGUILayout.TextArea(m_DependencyListText);
+                        }                                                                        
                         EditorGUILayout.EndScrollView();
                     }
                     EditorGUILayout.EndVertical();
