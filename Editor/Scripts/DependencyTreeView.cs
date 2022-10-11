@@ -28,10 +28,16 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         AssetBundleDumpData m_AssetBundleDumpData;
         string m_AssetBundleHash;
         bool m_IsBuild;
+        List<string> m_DependencyFileList;
 
         public bool IsBuild
         {
             get { return m_IsBuild; }
+        }
+
+        public List<string> DependencyFileList
+        {
+            get { return m_DependencyFileList; }
         }
 
 
@@ -42,6 +48,9 @@ namespace UTJ.UnityAssetBundleDumper.Editor
 
         protected override TreeViewItem BuildRoot()
         {
+            m_DependencyFileList = new List<string>();
+
+
             var root = new DependencyTreeViewItem { id = 0, depth = -1,hash = string.Empty,displayName = "Root" };
             var fpath = m_AssetBundleDumpData.m_Hash2AssetBundleFilePaths[m_AssetBundleHash];
             var item = new DependencyTreeViewItem { id = root.id+1, depth = root.depth + 1, hash = m_AssetBundleHash, displayName = Path.GetFileName(fpath) + "(" + m_AssetBundleHash  + ")"};
@@ -113,9 +122,13 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                         var childHash = words[2];
                         var fpath = m_AssetBundleDumpData.m_Hash2AssetBundleFilePaths[childHash];
 
+
                         var item = new DependencyTreeViewItem { id = ++_id, depth = parentItem.depth + 1, hash = childHash, displayName = Path.GetFileName(fpath) + "(" + childHash + ")" };
                         parentItem.AddChild(item);
-
+                        if (!m_DependencyFileList.Contains(item.displayName))
+                        {
+                            m_DependencyFileList.Add(item.displayName);
+                        }
                         // 循環参照している場合は、処理を打ち切る
                         bool IsCirculation = false;
                         var checkItem = (DependencyTreeViewItem)parentItem.parent;

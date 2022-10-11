@@ -377,8 +377,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
 
         int m_HashIndex;       
         string m_AssetBundleFilePath = string.Empty;
-        string m_DependencyListText;        
-        string m_DependencyTreeText;
+        string m_DependencyListText;                
         Vector2 m_DependencyTreeScroll;
         Vector2 m_DependencyListScroll;
 
@@ -498,23 +497,41 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 if (m_HashIndex != oldHashIndex)
                 {
                     m_DependencyTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
+                    using (StringWriter sw = new StringWriter())
+                    {
+                        foreach (var dependency in m_DependencyTreeView.DependencyFileList)
+                        {                            
+                            sw.WriteLine(dependency);
+                        }
+                        m_DependencyListText = sw.ToString();
+                    }
+
                 }
 
                 EditorGUI.BeginChangeCheck();
                 m_HashIndex = EditorGUILayout.Popup(m_HashIndex, m_AssetBundleHashes);
                 if (EditorGUI.EndChangeCheck())
                 {
-                    m_DependencyTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);                    
+                    // 依存関係のTree表示をビルド
+                    m_DependencyTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
+                    using (StringWriter sw = new StringWriter())
+                    {
+                        foreach (var dependency in m_DependencyTreeView.DependencyFileList)
+                        {
+                            sw.WriteLine(dependency);
+                        }
+                        m_DependencyListText = sw.ToString();
+                    }
                 }
                 EditorGUILayout.EndHorizontal();
                 
                 EditorGUILayout.BeginHorizontal();
                 {
+                    // 依存関係のTree表示
                     EditorGUILayout.BeginVertical();
                     {
                         EditorGUILayout.LabelField(Styles.DependencyTreeView);
                         m_DependencyTreeScroll = EditorGUILayout.BeginScrollView(m_DependencyTreeScroll);
-                        //EditorGUILayout.TextArea(m_DependencyTreeText);
                         if (m_DependencyTreeView.IsBuild)
                         {
                             m_DependencyTreeView.OnGUI(new Rect(0, 0, position.width, position.height));
@@ -523,12 +540,23 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     }
                     EditorGUILayout.EndVertical();
 
-
+                    // 依存ファイルのリスト表示
                     EditorGUILayout.BeginVertical();
                     {
                         EditorGUILayout.LabelField(Styles.DependencyListView);
                         m_DependencyListScroll = EditorGUILayout.BeginScrollView(m_DependencyListScroll);
-                        EditorGUILayout.TextArea(m_DependencyListText);
+
+                        if ((m_DependencyTreeView != null) && (m_DependencyTreeView.DependencyFileList != null))
+                        {
+                            foreach (var dependency in m_DependencyTreeView.DependencyFileList)
+                            {
+                                EditorGUILayout.LabelField(dependency);
+                            }
+                        }
+                        
+                        
+
+                        //EditorGUILayout.TextArea(m_DependencyListText);
                         EditorGUILayout.EndScrollView();
                     }
                     EditorGUILayout.EndVertical();
@@ -646,61 +674,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         }
 
 
-        bool Dependency(int depth,string hash,ref List<HashTree> hashTrees)
-        {
-            string fpath;
-            var result = m_Hash2AssetBundleFilePaths.TryGetValue(hash, out fpath);
-            if (result == false)
-            {
-                return false;
-            }
-            string dump;
-            result = m_Hash2DumpFilePaths.TryGetValue(hash, out dump);
-            if(result == false)
-            {
-                return false;
-            }
-
-            using (StreamReader sr = new StreamReader(new FileStream(dump, FileMode.Open)))
-            {
-                string line = sr.ReadLine();
-                if (line != "External References")
-                {
-                    return false;
-                }
-                var children = new List<string>();
-
-                while ((line = sr.ReadLine()) != null)
-                {
-                    if(line.StartsWith("path")  == false)
-                    {
-                        break;
-                    }
-                    // path(1): "Resources/unity_builtin_extra" GUID: 0000000000000000f000000000000000 Type: 0
-                    if (line.Contains("Resources"))
-                    {
-                        continue;
-                    }
-                    //
-                    // path(2): "archive:/CAB-56bb25c0e5ea7af2a5c41a1994f98568/CAB-56bb25c0e5ea7af2a5c41a1994f98568" GUID: 00000000000000000000000000000000 Type: 0                    
-                    string[] words = line.Split('/');
-                    // word[0]:path(2): "archive:/
-                    // word[1]:CAB-56bb25c0e5ea7af2a5c41a1994f98568
-                    //
-                    children.Add(words[1]);
-
-                }
-                var hashTree = new HashTree(depth,hash, children.ToArray());
-                hashTrees.Add(hashTree);
-                for(var i = 0; i < children.Count; i++)
-                {
-                    Dependency(++depth,children[i], ref hashTrees);
-                }
-            }
-
-
-            return true;
-        }
+        
 
 
         void DeleteDirectoryRecursive(string path)
@@ -743,50 +717,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             }
         }
 
-        void DoDependency()
-        {
-            var hashTrees = new List<HashTree>();
-            var hash = m_AssetBundleHashes[m_HashIndex];
-            Dependency(0, hash, ref hashTrees);
-            var dependencyList = new List<string>();
-            foreach (var hashTree in hashTrees)
-            {
-                if (hashTree.depth == 0)
-                {
-                    continue;
-                }
-                if (dependencyList.Contains(hashTree.hash) == false)
-                {
-                    dependencyList.Add(hashTree.hash);
-                }
-            }
-            using (StringWriter sw = new StringWriter())
-            {
-                foreach (var dependency in dependencyList)
-                {
-                    var line = m_Hash2AssetBundleFilePaths[dependency];
-                    line = line.Remove(0, m_AssetBundleRootFolder.Length + 1);
-                    sw.WriteLine(line);
-                }
-                m_DependencyListText = sw.ToString();
-            }
-
-            using (StringWriter sw = new StringWriter())
-            {
-                foreach (var hashTree in hashTrees)
-                {
-                    string line = string.Empty;
-                    for (var i = 0; i < hashTree.depth; i++)
-                    {
-                        line = line + " ";
-                    }
-                    var fname = Path.GetFileName(m_Hash2AssetBundleFilePaths[hashTree.hash]);
-                    line = line + $"{fname}:({hashTree.hash})";
-                    sw.WriteLine(line);
-                }
-                m_DependencyTreeText = sw.ToString();
-            }
-        }
+        
 
 
         void AnalyzeDumpFiles()
