@@ -589,6 +589,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     var serializeFiles = Directory.GetFiles(unpackFolder, "CAB-*.", SearchOption.TopDirectoryOnly);
                     if(serializeFiles.Length == 0)
                     {
+                        // SceneをAssetBundle化した場合、BuildPlayer-から始まるファイルが解凍される
                         serializeFiles = Directory.GetFiles(unpackFolder, "BuildPlayer-*", SearchOption.TopDirectoryOnly);
                     }
 
@@ -596,12 +597,12 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     for (var i = 0; i < serializeFiles.Length; i++)
                     {
                         var serializeFileName = Path.GetFileName(serializeFiles[i]);
-
                         if(Path.GetExtension(serializeFileName) == ".resS")
                         {
+                            // Resourcesファイル？
+                            // bin2txtでダンプ出来ない為、パスする
                             continue;
                         }
-
                         var dumpFilePath = Path.Combine(folderPath, serializeFileName) + ".txt";
                         result = b2t.Exec(serializeFiles[i], dumpFilePath, "");
                         if (result != 0)

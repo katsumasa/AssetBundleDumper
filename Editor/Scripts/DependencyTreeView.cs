@@ -1,4 +1,4 @@
-using System.Collections;
+Ôªøusing System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
@@ -62,9 +62,9 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         /// <summary>
         /// 
         /// </summary>
-        /// <param name="parentItem">êeÇÃTreeViewItem</param>
+        /// <param name="parentItem">Ë¶™„ÅÆTreeViewItem</param>
         /// <param name="hash"></param>
-        /// <param name="_id">TreeViewItemÇÃID</param>
+        /// <param name="_id">TreeViewItem„ÅÆID</param>
         /// <returns></returns>
         bool Dependency(TreeViewItem parentItem,string hash,ref int _id)
         {
@@ -104,30 +104,35 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     words = words[1].Split('/');
                     if (words[0] == "Library")
                     {
-                        continue ;
+                        // path(2): "Library/unity default resources" GUID: 0000000000000000e000000000000000 Type: 0
+                        var item = new DependencyTreeViewItem { id = ++_id, depth = parentItem.depth + 1, hash = string.Empty, displayName = words[1] };
+                        parentItem.AddChild(item);                     
                     }
-                    var childHash = words[2];
-                    var fpath = m_AssetBundleDumpData.m_Hash2AssetBundleFilePaths[childHash];
-                    
-                    var item = new DependencyTreeViewItem { id = ++_id, depth = parentItem.depth+1,hash = childHash, displayName = Path.GetFileName(fpath) + "(" + childHash + ")"};
-                    parentItem.AddChild(item);
+                    else
+                    {
+                        var childHash = words[2];
+                        var fpath = m_AssetBundleDumpData.m_Hash2AssetBundleFilePaths[childHash];
 
-                    // èzä¬éQè∆ÇµÇƒÇ¢ÇÈèÍçáÇÕÅAèàóùÇë≈ÇøêÿÇÈ
-                    bool IsCirculation = false;
-                    var checkItem = (DependencyTreeViewItem)parentItem.parent;
-                    while (checkItem != null)
-                    {
-                        if(checkItem.hash == childHash)
+                        var item = new DependencyTreeViewItem { id = ++_id, depth = parentItem.depth + 1, hash = childHash, displayName = Path.GetFileName(fpath) + "(" + childHash + ")" };
+                        parentItem.AddChild(item);
+
+                        // Âæ™Áí∞ÂèÇÁÖß„Åó„Å¶„ÅÑ„ÇãÂ†¥Âêà„ÅØ„ÄÅÂá¶ÁêÜ„ÇíÊâì„Å°Âàá„Çã
+                        bool IsCirculation = false;
+                        var checkItem = (DependencyTreeViewItem)parentItem.parent;
+                        while (checkItem != null)
                         {
-                            IsCirculation = true;
-                            Debug.LogWarning($"{item.displayName} is circular reference.");                            
-                            break;
+                            if (checkItem.hash == childHash)
+                            {
+                                IsCirculation = true;
+                                Debug.LogWarning($"{item.displayName} is circular reference.");
+                                break;
+                            }
+                            checkItem = (DependencyTreeViewItem)checkItem.parent;
                         }
-                        checkItem = (DependencyTreeViewItem)checkItem.parent;
-                    }
-                    if (!IsCirculation)
-                    {
-                        Dependency(item, childHash, ref _id);
+                        if (!IsCirculation)
+                        {
+                            Dependency(item, childHash, ref _id);
+                        }
                     }
                 }
             }
