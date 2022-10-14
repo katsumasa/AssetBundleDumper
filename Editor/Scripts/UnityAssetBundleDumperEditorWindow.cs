@@ -69,6 +69,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
 
         public AssetBundleDumpInfo()
         {
+            m_Name = String.Empty;
             m_Preloads = new PPtrInfo[0];
             m_AssetDumpInfos = new AssetDumpInfo[0];
             m_Paths = new string[0];
@@ -383,9 +384,10 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             public static readonly GUIContent Hash = new GUIContent("Hash", "This is the AssetBundle Hash, but you can also select an AssetBundle from the Hash.");
             public static readonly GUIContent AssetBundleDependency = new GUIContent("AssetBundle Dependency");
             public static readonly GUIContent CheckDependency = new GUIContent("Check Dependency");
-            public static readonly GUIContent DependencyTreeView = new GUIContent("Dependency Tree", "Tree display of AssetBundle dependencies");
-            public static readonly GUIContent DependencyListView = new GUIContent("Dependency List", "List of dependent AssetBundles");
+            public static readonly GUIContent DependencyTreeView = new GUIContent("AssetBundle Dependency TreeView", "Tree display of AssetBundle dependencies");
+            public static readonly GUIContent DependencyListView = new GUIContent("AssetBundle Dependency ListView", "List of dependent AssetBundles");
             public static readonly GUIContent Select = new GUIContent("Select","Select AssetBundle");
+            public static readonly GUIContent AssetReferenceTreeView = new GUIContent("Asset Reference TreeView", "Displays Assets referenced by Assets included in AssetBundle in TreeView.");
         }
 
         static string m_WorkFolder;
@@ -492,12 +494,14 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 m_DependencyTreeViewState = new TreeViewState();
             }
             m_DependencyTreeView = new DependencyTreeView(m_DependencyTreeViewState);
+            m_DependencyTreeView.Reload();
 
-            if(m_AssetBundleDumpInfoTreeViewState == null)
+            if (m_AssetBundleDumpInfoTreeViewState == null)
             {
                 m_AssetBundleDumpInfoTreeViewState = new TreeViewState();
             }
             m_AssetBundleDumpInfoTreeView = new AssetBundleDumpInfoTreeView(m_AssetBundleDumpInfoTreeViewState);
+            m_AssetBundleDumpInfoTreeView.Reload();
         }
 
         private void OnDisable()
@@ -508,7 +512,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         private void OnGUI()
         {
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField(new GUIContent("AssetBunde DataBase"));            
+            EditorGUILayout.LabelField(new GUIContent("AssetBundle DataBase"));            
             EditorGUILayout.EndHorizontal();
 
             using (new EditorGUI.IndentLevelScope())
@@ -545,97 +549,93 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             }
 
             EditorGUILayout.Separator();
+            
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.PrefixLabel(Styles.SelectAssetBundle);
+            EditorGUILayout.TextField(m_AssetBundleFilePath);
 
-            //EditorGUILayout.LabelField(Styles.AssetBundleDependency);
-
-            using (new EditorGUI.IndentLevelScope())
+            var oldHashIndex = m_HashIndex;
+            if (GUILayout.Button(Styles.Select))
             {
-                EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.PrefixLabel(Styles.SelectAssetBundle);
-                EditorGUILayout.TextField(m_AssetBundleFilePath);
-
-                var oldHashIndex = m_HashIndex;
-                if (GUILayout.Button(Styles.Select))
-                {
-                    BrowseAssetBundleRootFolder();
-                }
-                EditorGUILayout.PrefixLabel(Styles.Hash);
-                if (m_AssetBundleHashes == null || m_AssetBundleHashes.Length == 0)
-                {
-                    m_AssetBundleHashes = new string[] { "" };
-                }
-                
-                m_HashIndex = System.Math.Min(m_HashIndex, m_AssetBundleHashes.Length - 1);
-                m_HashIndex = System.Math.Max(m_HashIndex, 0);
-
-                var hash = m_AssetBundleHashes[m_HashIndex];
-                string filePath;
-                if (m_Hash2AssetBundleFilePaths.TryGetValue(hash, out filePath))
-                {
-                    m_AssetBundleFilePath = filePath;
-                }
-                if (m_HashIndex != oldHashIndex)
-                {
-                    m_DependencyTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
-                    m_AssetBundleDumpInfoTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
-                }
-
-                EditorGUI.BeginChangeCheck();
-                m_HashIndex = EditorGUILayout.Popup(m_HashIndex, m_AssetBundleHashes);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    // 依存関係のTree表示をビルド
-                    m_DependencyTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
-                    m_AssetBundleDumpInfoTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
-                }
-                EditorGUILayout.EndHorizontal();
-                
-                EditorGUILayout.BeginHorizontal();
-                {
-                    // 依存関係のTree表示
-                    EditorGUILayout.BeginVertical();
-                    {
-                        EditorGUILayout.LabelField(Styles.DependencyTreeView);
-                        m_DependencyTreeScroll = EditorGUILayout.BeginScrollView(m_DependencyTreeScroll);
-                        if (m_DependencyTreeView != null && m_DependencyTreeView.IsBuild)
-                        {
-                            var r = EditorGUILayout.GetControlRect(false,50);
-                            m_DependencyTreeView.OnGUI(r);
-                        }
-                        EditorGUILayout.EndScrollView();
-                    }
-                    EditorGUILayout.EndVertical();
-
-                    // 依存ファイルのリスト表示
-                    EditorGUILayout.BeginVertical();
-                    {
-                        EditorGUILayout.LabelField(Styles.DependencyListView);
-                        m_DependencyListScroll = EditorGUILayout.BeginScrollView(m_DependencyListScroll);
-
-                        if ((m_DependencyTreeView != null) && (m_DependencyTreeView.DependencyFileList != null))
-                        {
-                            foreach (var dependency in m_DependencyTreeView.DependencyFileList)
-                            {
-                                EditorGUILayout.LabelField(dependency);
-                            }
-                        }                                                                        
-                        EditorGUILayout.EndScrollView();
-                    }
-                    EditorGUILayout.EndVertical();
-                }
-                EditorGUILayout.EndHorizontal();
-
-                EditorGUILayout.LabelField("AssetBundleInfo");
-                EditorGUILayout.BeginHorizontal();
-                m_AssetBundleDumpInfoTreeScroll = EditorGUILayout.BeginScrollView(m_AssetBundleDumpInfoTreeScroll);
-                if (m_AssetBundleDumpInfoTreeView != null && m_AssetBundleDumpInfoTreeView.IsBuild)
-                {
-                    var r = EditorGUILayout.GetControlRect(false,200);
-                    m_AssetBundleDumpInfoTreeView.OnGUI(r);                    
-                }
-                EditorGUILayout.EndScrollView();
-                EditorGUILayout.EndHorizontal();
+                BrowseAssetBundleRootFolder();
             }
+            EditorGUILayout.PrefixLabel(Styles.Hash);
+            if (m_AssetBundleHashes == null || m_AssetBundleHashes.Length == 0)
+            {
+                m_AssetBundleHashes = new string[] { "" };
+            }
+                
+            m_HashIndex = System.Math.Min(m_HashIndex, m_AssetBundleHashes.Length - 1);
+            m_HashIndex = System.Math.Max(m_HashIndex, 0);
+
+            var hash = m_AssetBundleHashes[m_HashIndex];
+            string filePath;
+            if (m_Hash2AssetBundleFilePaths.TryGetValue(hash, out filePath))
+            {
+                m_AssetBundleFilePath = filePath;
+            }
+            if (m_HashIndex != oldHashIndex)
+            {
+                m_DependencyTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
+                m_AssetBundleDumpInfoTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
+            }
+
+            EditorGUI.BeginChangeCheck();
+            m_HashIndex = EditorGUILayout.Popup(m_HashIndex, m_AssetBundleHashes);
+            if (EditorGUI.EndChangeCheck())
+            {
+                // 依存関係のTree表示をビルド
+                m_DependencyTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
+                m_AssetBundleDumpInfoTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
+            }
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.LabelField(Styles.AssetReferenceTreeView);
+            EditorGUILayout.BeginHorizontal();
+            {
+                var r = EditorGUILayout.GetControlRect(false, 200);                
+                m_AssetBundleDumpInfoTreeView.OnGUI(r);                                
+            }
+            EditorGUILayout.EndHorizontal();
+
+
+            EditorGUILayout.Separator();
+
+            
+            EditorGUILayout.BeginHorizontal();
+            {
+                // 依存関係のTree表示
+                EditorGUILayout.BeginVertical();
+                {
+                    EditorGUILayout.LabelField(Styles.DependencyTreeView);                                 
+                    {
+                        var r = EditorGUILayout.GetControlRect(false,200);
+                        m_DependencyTreeView.OnGUI(r);
+                    }             
+                }
+                EditorGUILayout.EndVertical();
+
+                // 依存ファイルのリスト表示
+                EditorGUILayout.BeginVertical();
+                {
+                    EditorGUILayout.LabelField(Styles.DependencyListView);
+                    m_DependencyListScroll = EditorGUILayout.BeginScrollView(m_DependencyListScroll);
+
+                    if ((m_DependencyTreeView != null) && (m_DependencyTreeView.DependencyFileList != null))
+                    {
+                        foreach (var dependency in m_DependencyTreeView.DependencyFileList)
+                        {
+                            EditorGUILayout.LabelField(dependency);
+                        }
+                    }                                                                        
+                    EditorGUILayout.EndScrollView();
+                }
+                EditorGUILayout.EndVertical();
+            }
+            EditorGUILayout.EndHorizontal();
+
+                
+            
         }
 
         private void CreateDB()
@@ -841,7 +841,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                         var words = line.Split(new string[] { " ", "　" }, StringSplitOptions.RemoveEmptyEntries);
                         var id = long.Parse(words[1]);
                         var classID = int.Parse(words[3].TrimEnd(')'));
-                        if (id == 1)
+                        if (classID == 142)
                         {
                             line = sr.ReadLine();
                             GetLine(ref line);

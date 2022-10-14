@@ -44,6 +44,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         public DependencyTreeView(TreeViewState state) : base(state)
         {
             m_IsBuild = false;
+            showBorder = false;
         }
 
         protected override TreeViewItem BuildRoot()
@@ -52,11 +53,21 @@ namespace UTJ.UnityAssetBundleDumper.Editor
 
 
             var root = new DependencyTreeViewItem { id = 0, depth = -1,hash = string.Empty,displayName = "Root" };
-            var fpath = m_AssetBundleDumpData.m_Hash2AssetBundleFilePaths[m_AssetBundleHash];
-            var item = new DependencyTreeViewItem { id = root.id+1, depth = root.depth + 1, hash = m_AssetBundleHash, displayName = Path.GetFileName(fpath) + "(" + m_AssetBundleHash  + ")"};
-            root.AddChild(item);            
-            int id = item.id + 1;
-            Dependency(item, m_AssetBundleHash, ref id);
+            if (m_AssetBundleDumpData != null && m_AssetBundleDumpData.m_Hash2AssetBundleFilePaths != null)
+            {
+                var fpath = m_AssetBundleDumpData.m_Hash2AssetBundleFilePaths[m_AssetBundleHash];
+                var item = new DependencyTreeViewItem { id = root.id + 1, depth = root.depth + 1, hash = m_AssetBundleHash, displayName = Path.GetFileName(fpath) + "(" + m_AssetBundleHash + ")" };
+                root.AddChild(item);
+                int id = item.id + 1;
+                Dependency(item, m_AssetBundleHash, ref id);
+            }
+            else
+            {
+                var dummy = new AssetBundleDumpInfoTreeViewItem { id = root.id + 1, depth = 0, displayName = "" };
+                root.AddChild(dummy);
+            }
+            
+            m_IsBuild = true;
             return root;
         }
 
@@ -65,7 +76,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             m_AssetBundleDumpData = assetBundleDumpData;
             m_AssetBundleHash = hash;
             Reload();
-            m_IsBuild = true;
+            
         }
 
         /// <summary>
