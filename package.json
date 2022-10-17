@@ -1,0 +1,16 @@
+{
+  "name": "com.utj.assetbundledumper",
+  "version": "0.0.1",
+  "displayName": "AssetBundleDumper",
+  "description": "This package dumps a built AssetBundle and displays information about the Assets contained in the AssetBundle and the dependencies between AssetBundles.",
+  "unity": "2017.1",
+  "dependencies": {
+    "com.utj.unitycommandlinetools": "0.1.1"
+  },
+  "keywords": [],
+  "author": {
+    "name": "Katsumasa.Kimura",
+    "email": "katsumasa@unity3d.com",
+    "url": "https://github.com/katsumasa"
+  }
+}
