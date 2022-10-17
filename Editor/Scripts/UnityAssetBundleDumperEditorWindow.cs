@@ -942,7 +942,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     var name = line.Split("\"")[1];
                     assetInfo.name = name;
                 } 
-                else if (words[1].StartsWith("(PPtr"))
+                else if (words.Length > 1 && words[1].StartsWith("(PPtr"))
                 {
                     // PPtrの次の行はm_FileID、その次はm_PathIDで固定されている                    
                     var pptrInfo = new PPtrInfo();
@@ -965,6 +965,10 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                         }
                     }                    
                     pptrInfoList.Add(pptrInfo);
+                }
+                else if(words.Length <= 1)
+                {
+                    //Debug.Log(line);
                 }
             }
             
