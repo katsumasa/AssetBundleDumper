@@ -51,18 +51,18 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         {
             m_DependencyFileList = new List<string>();
 
-
-            var root = new DependencyTreeViewItem { id = 0, depth = -1,hash = string.Empty,displayName = "Root" };
+            TreeViewItem root;
+            
             if (m_AssetBundleDumpData != null && m_AssetBundleDumpData.m_Hash2AssetBundleFilePaths != null)
-            {
+            {                
                 var fpath = m_AssetBundleDumpData.m_Hash2AssetBundleFilePaths[m_AssetBundleHash];
-                var item = new DependencyTreeViewItem { id = root.id + 1, depth = root.depth + 1, hash = m_AssetBundleHash, displayName = Path.GetFileName(fpath) + "(" + m_AssetBundleHash + ")" };
-                root.AddChild(item);
-                int id = item.id + 1;
-                Dependency(item, m_AssetBundleHash, ref id);
+                root = new DependencyTreeViewItem { id = 0, depth = -1, hash = m_AssetBundleHash, displayName = Path.GetFileName(fpath) + "(" + m_AssetBundleHash + ")" };                
+                int id = root.id + 1;
+                Dependency(root, m_AssetBundleHash, ref id);
             }
             else
             {
+                root = new DependencyTreeViewItem { id = 0, depth = -1, hash = string.Empty, displayName = "Root" };
                 var dummy = new AssetBundleDumpInfoTreeViewItem { id = root.id + 1, depth = 0, displayName = "" };
                 root.AddChild(dummy);
             }
@@ -126,7 +126,12 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     {
                         // path(2): "Library/unity default resources" GUID: 0000000000000000e000000000000000 Type: 0
                         var item = new DependencyTreeViewItem { id = ++_id, depth = parentItem.depth + 1, hash = string.Empty, displayName = words[1] };
-                        parentItem.AddChild(item);                     
+                        parentItem.AddChild(item);
+
+                        if (!m_DependencyFileList.Contains(item.displayName) && item.hash != m_AssetBundleHash)
+                        {
+                            m_DependencyFileList.Add(item.displayName);
+                        }
                     }
                     else
                     {
@@ -149,13 +154,13 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                             if (checkItem.hash == childHash)
                             {
                                 IsCirculation = true;
-                                Debug.LogWarning($"{item.displayName} is circular reference.");
+                                item.displayName += " [Circular Reference]";                                
                                 break;
                             }
                             checkItem = (DependencyTreeViewItem)checkItem.parent;
                         }
                         if (!IsCirculation)
-                        {
+                        {                            
                             Dependency(item, childHash, ref _id);
                         }
                     }
