@@ -6,7 +6,7 @@
 <img width="800" alt="image" src="https://user-images.githubusercontent.com/29646672/196111070-0036b978-9ade-4ef7-8810-268cf56f64ad.png">
 
 
-## 使用環境
+## 動作環境
 
 Unity2021.3.7f1 + Windows11にて開発を行っています。動作確認は行っていませんが、Unity2017以降のUnityであれば恐らく動作すると思われます。
 ※AssetBundleをビルドしたUnityEditorと同じバージョンのUnityEditorを使用して下さい。
