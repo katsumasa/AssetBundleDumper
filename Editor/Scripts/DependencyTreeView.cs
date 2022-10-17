@@ -62,11 +62,15 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             }
             else
             {
-                root = new DependencyTreeViewItem { id = 0, depth = -1, hash = string.Empty, displayName = "Root" };
+                root = new DependencyTreeViewItem { id = 0, depth = -1, hash = string.Empty, displayName = "Root" };                
+            }
+            
+            if(root.children == null)
+            {
                 var dummy = new AssetBundleDumpInfoTreeViewItem { id = root.id + 1, depth = 0, displayName = "" };
                 root.AddChild(dummy);
             }
-            
+
             m_IsBuild = true;
             return root;
         }

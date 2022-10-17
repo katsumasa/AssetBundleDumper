@@ -375,7 +375,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
     {
         static class Styles
         {
-            public static readonly GUIContent AssetBundleRootFolder = new GUIContent("AssetBundle Root Folder", "AssetBundle Root Folder Location");
+            public static readonly GUIContent AssetBundleRootFolder = new GUIContent("AssetBundle Folder", "AssetBundle Root Folder Location");
             public static readonly GUIContent Browse = new GUIContent("Browse");
             public static readonly GUIContent AssetBundleExtentions = new GUIContent("Search Pattern", "Specifies the filename pattern for the AssetBundle. The default value is \"*.\"and this is the pattern when there is no extension. To specify multiple patterns, separate them with ';'. (example: \"*.;*.txt\")");
             public static readonly GUIContent CreateDB = new GUIContent("Dump", "Dump all AssetBundles.");
@@ -384,8 +384,8 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             public static readonly GUIContent Hash = new GUIContent("Hash", "This is the AssetBundle Hash, but you can also select an AssetBundle from the Hash.");
             public static readonly GUIContent AssetBundleDependency = new GUIContent("AssetBundle Dependency");
             public static readonly GUIContent CheckDependency = new GUIContent("Check Dependency");
-            public static readonly GUIContent DependencyTreeView = new GUIContent("AssetBundle Dependency TreeView", "Tree display of AssetBundle dependencies");
-            public static readonly GUIContent DependencyListView = new GUIContent("AssetBundle Dependency ListView", "List of dependent AssetBundles");
+            public static readonly GUIContent DependencyTreeView = new GUIContent("AssetBundle Reference TreeView", "Tree display of AssetBundle Reference");
+            public static readonly GUIContent DependencyListView = new GUIContent("AssetBundle Reference ListView", "List of Reference AssetBundles");
             public static readonly GUIContent Select = new GUIContent("Select","Select AssetBundle");
             public static readonly GUIContent AssetReferenceTreeView = new GUIContent("Asset Reference TreeView", "Displays Assets referenced by Assets included in AssetBundle in TreeView.");
         }
@@ -462,22 +462,22 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         [SerializeField] TreeViewState m_AssetBundleDumpInfoTreeViewState;
         AssetBundleDumpInfoTreeView m_AssetBundleDumpInfoTreeView;
 
-        [MenuItem("Window/UTJ/UnityAssetBundleDumper")]
+        [MenuItem("Window/UTJ/AssetBundleDumper")]
         public static void Open()
         {
             m_Instance = EditorWindow.GetWindow(typeof(UnityAssetBundleDumperEditorWindow)) as UnityAssetBundleDumperEditorWindow;
-            m_Instance.titleContent.text = "UnityAssetBundleDumper";
+            m_Instance.titleContent.text = "AssetBundleDumper";
         }
 
         private void OnEnable()
         {
             m_Instance = EditorWindow.GetWindow(typeof(UnityAssetBundleDumperEditorWindow)) as UnityAssetBundleDumperEditorWindow;
-            m_Instance.titleContent.text = "UnityAssetBundleDumper";
+            m_Instance.titleContent.text = "AssetBundleDumper";
             if (m_Instance.m_AssetBundleRootFolder == null)
             {
                 m_Instance.m_AssetBundleRootFolder = Application.dataPath;
             }
-            m_WorkFolder = Path.Combine(Path.GetDirectoryName(Application.dataPath), "Library", "UnityAssetBundleDumper");
+            m_WorkFolder = Path.Combine(Path.GetDirectoryName(Application.dataPath), "Library", "AssetBundleDumper");
             m_DataBaseFilePath = Path.Combine(m_WorkFolder, "db");
             m_CasheFolder = Path.Combine(m_WorkFolder, "caches");
 
@@ -619,6 +619,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 EditorGUILayout.BeginVertical();
                 {
                     EditorGUILayout.LabelField(Styles.DependencyListView);
+                    EditorGUI.indentLevel++;
                     m_DependencyListScroll = EditorGUILayout.BeginScrollView(m_DependencyListScroll);
 
                     if ((m_DependencyTreeView != null) && (m_DependencyTreeView.DependencyFileList != null))
@@ -629,6 +630,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                         }
                     }                                                                        
                     EditorGUILayout.EndScrollView();
+                    EditorGUI.indentLevel--;
                 }
                 EditorGUILayout.EndVertical();
             }
@@ -668,7 +670,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 {
                     var fileName = Path.GetFileName(fpath);
                     var progress = (float)no / (float)fpaths.Count;
-                    EditorUtility.DisplayProgressBar("UnityAssetBundleDumper", $"Create DB... {no}/{fpaths.Count}",progress);
+                    EditorUtility.DisplayProgressBar("AssetBundleDumper", $"Create DB... {no}/{fpaths.Count}",progress);
                     
                     // 同じ名前を持つAssetBundleが存在するケースがあるので、ランダムな名前のディレクトリを追加する
                     var folderPath = Path.Combine(m_CasheFolder, Path.GetFileNameWithoutExtension(Path.GetRandomFileName()));
