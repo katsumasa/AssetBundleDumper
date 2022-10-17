@@ -10,7 +10,7 @@ using UnityEngine.Assertions.Must;
 namespace UTJ.UnityAssetBundleDumper.Editor
 {
 
-    public class AssetBundleDumpInfoTreeViewItem : TreeViewItem
+    public class AssetReferenceTreeViewItem : TreeViewItem
     {
         string m_Hash;
         public string hash
@@ -30,7 +30,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
     }
 
 
-    public class AssetBundleDumpInfoTreeView : TreeView
+    public class AssetReferenceTreeView : TreeView
     {
 
         AssetBundleDumpData m_AssetBundleDumpData;
@@ -43,7 +43,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         }
 
 
-        public AssetBundleDumpInfoTreeView(TreeViewState state) : base(state)
+        public AssetReferenceTreeView(TreeViewState state) : base(state)
         {
             m_AssetBundleHash = string.Empty;
             m_IsBuild = false;
@@ -73,7 +73,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             var result = m_AssetBundleDumpData.m_Hash2AssetBundleBundeInfo.TryGetValue(hash, out assetBundleDumpInfo);
             if (result == false)
             {
-                var assetInfoItem = new AssetBundleDumpInfoTreeViewItem
+                var assetInfoItem = new AssetReferenceTreeViewItem
                 {
                     id = treeID++,
                     depth = parent.depth + 1,
@@ -107,7 +107,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                         displayName += $" => Reference AssetBundle: {Path.GetFileName(fpath)}({hash})";
                     }
 
-                    var assetInfoItem = new AssetBundleDumpInfoTreeViewItem
+                    var assetInfoItem = new AssetReferenceTreeViewItem
                     {
                         id = treeID++,
                         depth = parent.depth + 1,
@@ -119,7 +119,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     parent.AddChild(assetInfoItem);
 
                     bool IsCirculation = false;
-                    var checkItem = (AssetBundleDumpInfoTreeViewItem)parent;
+                    var checkItem = (AssetReferenceTreeViewItem)parent;
                     while(checkItem != null)
                     {
                         if((checkItem.pathID == pathID) && (checkItem.hash == hash))
@@ -129,12 +129,16 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                             assetInfoItem.displayName += " [Circular Reference]";
                             break;
                         }
-                        checkItem = checkItem.parent as AssetBundleDumpInfoTreeViewItem;
+                        checkItem = checkItem.parent as AssetReferenceTreeViewItem;
                     }
                     if (!IsCirculation)
                     {
+                        var i = 0;
                         foreach (var pptrInfo in assetDumpInfo.PPtrInfos)
                         {
+                            var progress = (float)i / (float)assetDumpInfo.PPtrInfos.Length;
+                            EditorUtility.DisplayProgressBar("AssetBundleDumper", $"Build TreeView depth({assetInfoItem.depth}) TreeID:{treeID}", progress);
+                            i++;
                             if (pptrInfo.m_FileID == 0 && pptrInfo.m_PathID == 0)
                             {
                                 // null
@@ -144,6 +148,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                             var pptrHash = Path.GetFileNameWithoutExtension(path);
                             BuildSub(assetInfoItem, pptrHash, pptrInfo.m_PathID, ref treeID);
                         }
+                        EditorUtility.ClearProgressBar();
                     }
                     break;
                 }
@@ -155,7 +160,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         protected override TreeViewItem BuildRoot()
         {                        
             int id = 0;
-            var root = new AssetBundleDumpInfoTreeViewItem { id = id++, depth = -1, displayName = "Root" };
+            var root = new AssetReferenceTreeViewItem { id = id++, depth = -1, displayName = "Root" };
             if (m_AssetBundleDumpData != null && m_AssetBundleDumpData.m_Hash2AssetBundleBundeInfo != null)
             {
                 AssetBundleDumpInfo assetBundleDumpInfo;
@@ -163,20 +168,25 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 if (result)
                 {
                     var fpath = m_AssetBundleDumpData.m_Hash2AssetBundleFilePaths[m_AssetBundleHash];
+                    int i = 0;                    
                     foreach (var assetDumpInfo in assetBundleDumpInfo.assetDumpInfos)
                     {
+                        var progress = (float)i / (float)assetBundleDumpInfo.assetDumpInfos.Length;
+                        EditorUtility.DisplayProgressBar("AssetBundleDumper", "Build TreeView", progress);
                         BuildSub(root, m_AssetBundleHash, assetDumpInfo.id, ref id);
+                        i++;
                     }
+                    EditorUtility.ClearProgressBar();
                 }
                 else
                 {
-                    var dummy = new AssetBundleDumpInfoTreeViewItem { id = id++, depth = 0, displayName = "" };
+                    var dummy = new AssetReferenceTreeViewItem { id = id++, depth = 0, displayName = "" };
                     root.AddChild(dummy);
                 }
             }
             else
             {
-                var dummy = new AssetBundleDumpInfoTreeViewItem { id = id++, depth = 0, displayName = "" };
+                var dummy = new AssetReferenceTreeViewItem { id = id++, depth = 0, displayName = "" };
                 root.AddChild(dummy);
             }
             m_IsBuild = true;

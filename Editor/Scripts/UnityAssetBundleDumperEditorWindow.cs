@@ -456,11 +456,11 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         Vector2 m_DependencyListScroll;
         Vector2 m_AssetBundleDumpInfoTreeScroll;
 
-        [SerializeField] TreeViewState m_DependencyTreeViewState;
-        DependencyTreeView m_DependencyTreeView;
+        [SerializeField] TreeViewState m_AssetBundleReferenceTreeViewState;
+        AssetBundleReferenceTreeView m_AssetBundleReferenceTreeView;
 
-        [SerializeField] TreeViewState m_AssetBundleDumpInfoTreeViewState;
-        AssetBundleDumpInfoTreeView m_AssetBundleDumpInfoTreeView;
+        [SerializeField] TreeViewState m_AssetReferenceTreeViewState;
+        AssetReferenceTreeView m_AssetReferenceTreeView;
 
         [MenuItem("Window/UTJ/AssetBundleDumper")]
         public static void Open()
@@ -489,19 +489,19 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 }
             }
 
-            if(m_DependencyTreeViewState == null)
+            if(m_AssetBundleReferenceTreeViewState == null)
             {
-                m_DependencyTreeViewState = new TreeViewState();
+                m_AssetBundleReferenceTreeViewState = new TreeViewState();
             }
-            m_DependencyTreeView = new DependencyTreeView(m_DependencyTreeViewState);
-            m_DependencyTreeView.Reload();
+            m_AssetBundleReferenceTreeView = new AssetBundleReferenceTreeView(m_AssetBundleReferenceTreeViewState);
+            m_AssetBundleReferenceTreeView.Reload();
 
-            if (m_AssetBundleDumpInfoTreeViewState == null)
+            if (m_AssetReferenceTreeViewState == null)
             {
-                m_AssetBundleDumpInfoTreeViewState = new TreeViewState();
+                m_AssetReferenceTreeViewState = new TreeViewState();
             }
-            m_AssetBundleDumpInfoTreeView = new AssetBundleDumpInfoTreeView(m_AssetBundleDumpInfoTreeViewState);
-            m_AssetBundleDumpInfoTreeView.Reload();
+            m_AssetReferenceTreeView = new AssetReferenceTreeView(m_AssetReferenceTreeViewState);
+            m_AssetReferenceTreeView.Reload();
         }
 
         private void OnDisable()
@@ -576,8 +576,8 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             }
             if (m_HashIndex != oldHashIndex)
             {
-                m_DependencyTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
-                m_AssetBundleDumpInfoTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
+                m_AssetBundleReferenceTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
+                m_AssetReferenceTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
             }
 
             EditorGUI.BeginChangeCheck();
@@ -585,8 +585,8 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             if (EditorGUI.EndChangeCheck())
             {
                 // 依存関係のTree表示をビルド
-                m_DependencyTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
-                m_AssetBundleDumpInfoTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
+                m_AssetBundleReferenceTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
+                m_AssetReferenceTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
             }
             EditorGUILayout.EndHorizontal();
 
@@ -594,7 +594,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             EditorGUILayout.BeginHorizontal();
             {
                 var r = EditorGUILayout.GetControlRect(false, 200);                
-                m_AssetBundleDumpInfoTreeView.OnGUI(r);                                
+                m_AssetReferenceTreeView.OnGUI(r);                                
             }
             EditorGUILayout.EndHorizontal();
 
@@ -610,7 +610,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     EditorGUILayout.LabelField(Styles.DependencyTreeView);                                 
                     {
                         var r = EditorGUILayout.GetControlRect(false,200);
-                        m_DependencyTreeView.OnGUI(r);
+                        m_AssetBundleReferenceTreeView.OnGUI(r);
                     }             
                 }
                 EditorGUILayout.EndVertical();
@@ -622,9 +622,9 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     EditorGUI.indentLevel++;
                     m_DependencyListScroll = EditorGUILayout.BeginScrollView(m_DependencyListScroll);
 
-                    if ((m_DependencyTreeView != null) && (m_DependencyTreeView.DependencyFileList != null))
+                    if ((m_AssetBundleReferenceTreeView != null) && (m_AssetBundleReferenceTreeView.DependencyFileList != null))
                     {
-                        foreach (var dependency in m_DependencyTreeView.DependencyFileList)
+                        foreach (var dependency in m_AssetBundleReferenceTreeView.DependencyFileList)
                         {
                             EditorGUILayout.LabelField(dependency);
                         }

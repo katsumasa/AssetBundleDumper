@@ -10,7 +10,7 @@ using System.Security.Cryptography;
 namespace UTJ.UnityAssetBundleDumper.Editor
 {
 
-    public class DependencyTreeViewItem : TreeViewItem
+    public class AssetBundleReferenceTreeViewItem : TreeViewItem
     {
         public string m_Hash;
         public string hash
@@ -19,11 +19,11 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             set { m_Hash = value; }
         }
 
-        public DependencyTreeViewItem() : base() { }
+        public AssetBundleReferenceTreeViewItem() : base() { }
     }
 
 
-    public class DependencyTreeView : TreeView
+    public class AssetBundleReferenceTreeView : TreeView
     {
         AssetBundleDumpData m_AssetBundleDumpData;
         string m_AssetBundleHash;
@@ -41,7 +41,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         }
 
 
-        public DependencyTreeView(TreeViewState state) : base(state)
+        public AssetBundleReferenceTreeView(TreeViewState state) : base(state)
         {
             m_IsBuild = false;
             showBorder = false;
@@ -56,18 +56,18 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             if (m_AssetBundleDumpData != null && m_AssetBundleDumpData.m_Hash2AssetBundleFilePaths != null)
             {                
                 var fpath = m_AssetBundleDumpData.m_Hash2AssetBundleFilePaths[m_AssetBundleHash];
-                root = new DependencyTreeViewItem { id = 0, depth = -1, hash = m_AssetBundleHash, displayName = Path.GetFileName(fpath) + "(" + m_AssetBundleHash + ")" };                
+                root = new AssetBundleReferenceTreeViewItem { id = 0, depth = -1, hash = m_AssetBundleHash, displayName = Path.GetFileName(fpath) + "(" + m_AssetBundleHash + ")" };                
                 int id = root.id + 1;
                 Dependency(root, m_AssetBundleHash, ref id);
             }
             else
             {
-                root = new DependencyTreeViewItem { id = 0, depth = -1, hash = string.Empty, displayName = "Root" };                
+                root = new AssetBundleReferenceTreeViewItem { id = 0, depth = -1, hash = string.Empty, displayName = "Root" };                
             }
             
             if(root.children == null)
             {
-                var dummy = new AssetBundleDumpInfoTreeViewItem { id = root.id + 1, depth = 0, displayName = "" };
+                var dummy = new AssetReferenceTreeViewItem { id = root.id + 1, depth = 0, displayName = "" };
                 root.AddChild(dummy);
             }
 
@@ -129,7 +129,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     if (words[0] == "Library")
                     {
                         // path(2): "Library/unity default resources" GUID: 0000000000000000e000000000000000 Type: 0
-                        var item = new DependencyTreeViewItem { id = ++_id, depth = parentItem.depth + 1, hash = string.Empty, displayName = words[1] };
+                        var item = new AssetBundleReferenceTreeViewItem { id = ++_id, depth = parentItem.depth + 1, hash = string.Empty, displayName = words[1] };
                         parentItem.AddChild(item);
 
                         if (!m_DependencyFileList.Contains(item.displayName) && item.hash != m_AssetBundleHash)
@@ -143,7 +143,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                         var fpath = m_AssetBundleDumpData.m_Hash2AssetBundleFilePaths[childHash];
 
 
-                        var item = new DependencyTreeViewItem { id = ++_id, depth = parentItem.depth + 1, hash = childHash, displayName = Path.GetFileName(fpath) + "(" + childHash + ")" };
+                        var item = new AssetBundleReferenceTreeViewItem { id = ++_id, depth = parentItem.depth + 1, hash = childHash, displayName = Path.GetFileName(fpath) + "(" + childHash + ")" };
                         parentItem.AddChild(item);
                         // 自分自身は依存リストには含めない
                         if (!m_DependencyFileList.Contains(item.displayName) && item.hash != m_AssetBundleHash)
@@ -152,7 +152,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                         }
                         // 循環参照している場合は、処理を打ち切る
                         bool IsCirculation = false;
-                        var checkItem = (DependencyTreeViewItem)parentItem.parent;
+                        var checkItem = (AssetBundleReferenceTreeViewItem)parentItem.parent;
                         while (checkItem != null)
                         {
                             if (checkItem.hash == childHash)
@@ -161,7 +161,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                                 item.displayName += " [Circular Reference]";                                
                                 break;
                             }
-                            checkItem = (DependencyTreeViewItem)checkItem.parent;
+                            checkItem = (AssetBundleReferenceTreeViewItem)checkItem.parent;
                         }
                         if (!IsCirculation)
                         {                            
