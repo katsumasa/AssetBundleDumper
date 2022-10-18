@@ -13,8 +13,21 @@ namespace UTJ.UnityAssetBundleDumper.Editor
 {
     public class PPtrInfo
     {
-        public int m_FileID;
-        public long m_PathID;
+        int m_FileID;
+        long m_PathID;
+
+        public int fileID
+        {
+            get { return m_FileID; }
+            set { m_FileID = value; }
+        }
+
+        public long pathID
+        {
+            get { return m_PathID; }
+            set { m_PathID = value; }
+        }
+
 
         public void Serialize(BinaryWriter binaryWriter)
         {
@@ -866,11 +879,11 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                                     {
                                         if (j == 0)
                                         {
-                                            assetBundeInfo.preloads[i].m_FileID = int.Parse(words[1]);
+                                            assetBundeInfo.preloads[i].fileID = int.Parse(words[1]);
                                         }
                                         else
                                         {
-                                            assetBundeInfo.preloads[i].m_PathID = long.Parse(words[1]);
+                                            assetBundeInfo.preloads[i].pathID = long.Parse(words[1]);
                                         }
                                     }
                                     catch (System.Exception e)
@@ -953,11 +966,11 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                         words = line.Split(new string[] { " ", "　" }, StringSplitOptions.RemoveEmptyEntries);
                         if((i == 0) && (words[0] == "m_FileID"))
                         {
-                            pptrInfo.m_FileID = int.Parse(words[1]);
+                            pptrInfo.fileID = int.Parse(words[1]);
                         }
                         else if((i == 1) && (words[0] == "m_PathID"))
                         {
-                            pptrInfo.m_PathID = long.Parse(words[1]);
+                            pptrInfo.pathID = long.Parse(words[1]);
                         }
                         else
                         {

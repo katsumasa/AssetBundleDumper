@@ -32,10 +32,10 @@ namespace UTJ.UnityAssetBundleDumper.Editor
 
     public class AssetReferenceTreeView : TreeView
     {
-
         AssetBundleDumpData m_AssetBundleDumpData;
         string m_AssetBundleHash;
         bool m_IsBuild;
+
 
         public bool IsBuild
         {
@@ -56,7 +56,6 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             if ((hash == "unity default resources")||(hash == "unity_builtin_extra"))
             {
                 string displayName = $"ID: {pathID} Reference Asset: {hash}";
-
                 var assetInfoItem = new TreeViewItem
                 {
                     id = treeID++,
@@ -82,8 +81,8 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 assetInfoItem.hash = hash;
                 assetInfoItem.pathID = pathID;
                 parent.AddChild(assetInfoItem);
-                Debug.LogError($"{hash} is not exist.");
 
+                Debug.LogError($"{hash} is not exist.");
                 return;
             }
 
@@ -93,13 +92,11 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             {
                 if (assetDumpInfo.id == pathID)
                 {
-
                     string name = "Empty";
                     if (!string.IsNullOrEmpty(assetDumpInfo.name))
                     {
                         name = assetDumpInfo.name;
                     }
-
                     string displayName = $"ID: {assetDumpInfo.id} Name: {name} ClassID: {assetDumpInfo.classID} ({assetDumpInfo.objectName})";
 
                     if (hash != m_AssetBundleHash)
@@ -117,6 +114,9 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     };
                     
                     parent.AddChild(assetInfoItem);
+
+
+
 
                     bool IsCirculation = false;
                     var checkItem = (AssetReferenceTreeViewItem)parent;
@@ -139,14 +139,14 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                             var progress = (float)i / (float)assetDumpInfo.PPtrInfos.Length;
                             EditorUtility.DisplayProgressBar("AssetBundleDumper", $"Build TreeView depth({assetInfoItem.depth}) TreeID:{treeID}", progress);
                             i++;
-                            if (pptrInfo.m_FileID == 0 && pptrInfo.m_PathID == 0)
+                            if (pptrInfo.fileID == 0 && pptrInfo.pathID == 0)
                             {
                                 // null
                                 continue;
                             }
-                            var path = assetBundleDumpInfo.paths[pptrInfo.m_FileID];
+                            var path = assetBundleDumpInfo.paths[pptrInfo.fileID];
                             var pptrHash = Path.GetFileNameWithoutExtension(path);
-                            BuildSub(assetInfoItem, pptrHash, pptrInfo.m_PathID, ref treeID);
+                            BuildSub(assetInfoItem, pptrHash, pptrInfo.pathID, ref treeID);
                         }
                         EditorUtility.ClearProgressBar();
                     }
