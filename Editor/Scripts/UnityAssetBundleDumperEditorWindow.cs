@@ -7,6 +7,7 @@ using UnityEditor.IMGUI.Controls;
 using UTJ.UnityCommandLineTools;
 using System;
 using Unity.VisualScripting.Antlr3.Runtime.Collections;
+using static UnityEditor.Progress;
 
 
 namespace UTJ.UnityAssetBundleDumper.Editor
@@ -39,6 +40,28 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         {
             m_FileID = binaryReader.ReadInt32();
             m_PathID = binaryReader.ReadInt64();
+        }
+
+        public override bool Equals(object obj)
+        {
+            if ((obj == null) || !this.GetType().Equals(obj.GetType()))
+            {
+                return false;
+            }
+            else
+            {
+                PPtrInfo pPtrInfo = (PPtrInfo)obj;
+                return ((m_FileID == pPtrInfo.m_FileID) && (m_PathID == pPtrInfo.m_PathID));                
+            }
+        }
+
+        public override int GetHashCode()
+        {
+            var hash = new { m_FileID, m_PathID }.GetHashCode();
+            var hash128 = new Hash128();
+            hash128.Append(base.GetHashCode());
+            hash128.Append(hash);
+            return hash128.GetHashCode();
         }
     }
 
@@ -475,6 +498,10 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         [SerializeField] TreeViewState m_AssetReferenceTreeViewState;
         AssetReferenceTreeView m_AssetReferenceTreeView;
 
+        [SerializeField] TreeViewState m_AssetBundleReferenceListViewState;
+        AssetBundleReferenceListView m_AssetBundleReferenceListView;
+
+
         [MenuItem("Window/UTJ/AssetBundleDumper")]
         public static void Open()
         {
@@ -508,6 +535,13 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             }
             m_AssetBundleReferenceTreeView = new AssetBundleReferenceTreeView(m_AssetBundleReferenceTreeViewState);
             m_AssetBundleReferenceTreeView.Reload();
+
+            if(m_AssetBundleReferenceListViewState == null)
+            {
+                m_AssetBundleReferenceListViewState = new TreeViewState();
+            }
+            m_AssetBundleReferenceListView = new AssetBundleReferenceListView(m_AssetBundleReferenceListViewState);
+            m_AssetBundleReferenceListView.Reload();
 
             if (m_AssetReferenceTreeViewState == null)
             {
@@ -591,6 +625,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             {
                 m_AssetBundleReferenceTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
                 m_AssetReferenceTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
+                m_AssetBundleReferenceListView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
             }
 
             EditorGUI.BeginChangeCheck();
@@ -600,13 +635,32 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 // 依存関係のTree表示をビルド
                 m_AssetBundleReferenceTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
                 m_AssetReferenceTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
+                m_AssetBundleReferenceListView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
             }
             EditorGUILayout.EndHorizontal();
 
+            EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField(Styles.AssetReferenceTreeView);
+            if (GUILayout.Button("Undo"))
+            {
+                if (m_AssetReferenceTreeView != null)
+                {
+                    m_AssetReferenceTreeView.Undo();
+                }
+            }
+            if (GUILayout.Button("Redo"))
+            {
+                if (m_AssetReferenceTreeView != null)
+                {
+                    m_AssetReferenceTreeView.Redo();
+                }
+            }
+
+            EditorGUILayout.EndHorizontal();
+
             EditorGUILayout.BeginHorizontal();
             {
-                var r = EditorGUILayout.GetControlRect(false, 200);                
+                var r = EditorGUILayout.GetControlRect(false, 400);                
                 m_AssetReferenceTreeView.OnGUI(r);                                
             }
             EditorGUILayout.EndHorizontal();
@@ -622,7 +676,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 {
                     EditorGUILayout.LabelField(Styles.DependencyTreeView);                                 
                     {
-                        var r = EditorGUILayout.GetControlRect(false,200);
+                        var r = EditorGUILayout.GetControlRect(false,400);
                         m_AssetBundleReferenceTreeView.OnGUI(r);
                     }             
                 }
@@ -632,6 +686,11 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 EditorGUILayout.BeginVertical();
                 {
                     EditorGUILayout.LabelField(Styles.DependencyListView);
+                    {
+                        var r = EditorGUILayout.GetControlRect(false,400);
+                        m_AssetBundleReferenceListView.OnGUI(r);
+                    }
+#if false
                     EditorGUI.indentLevel++;
                     m_DependencyListScroll = EditorGUILayout.BeginScrollView(m_DependencyListScroll);
 
@@ -644,13 +703,11 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     }                                                                        
                     EditorGUILayout.EndScrollView();
                     EditorGUI.indentLevel--;
+#endif
                 }
                 EditorGUILayout.EndVertical();
             }
-            EditorGUILayout.EndHorizontal();
-
-                
-            
+            EditorGUILayout.EndHorizontal();                            
         }
 
         private void CreateDB()

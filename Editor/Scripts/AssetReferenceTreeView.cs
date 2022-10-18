@@ -6,9 +6,49 @@ using UnityEditor.IMGUI.Controls;
 using System.IO;
 using UnityEditor.Build.Content;
 using UnityEngine.Assertions.Must;
+using Unity.VisualScripting.YamlDotNet.Core.Tokens;
+using UnityEditor.Search;
+using System.Security.Policy;
 
 namespace UTJ.UnityAssetBundleDumper.Editor
 {
+    public class ReferenceInfo
+    {
+        string m_Hash;
+        long m_PathID;
+
+        public string hash
+        {
+            get { return m_Hash; }
+            set { m_Hash = value; }
+        }
+        public long pathID
+        {
+            get { return m_PathID; }
+            set { m_PathID = value; }
+        }
+
+        public override bool Equals(object obj)
+        {
+            if ((obj == null) || !this.GetType().Equals(obj.GetType()))
+            {
+                return false;
+            }
+            else
+            {
+                ReferenceInfo pPtrInfo = (ReferenceInfo)obj;
+                return ((m_Hash == pPtrInfo.m_Hash) && (m_PathID == pPtrInfo.m_PathID));
+            }
+        }
+
+        public override int GetHashCode()
+        {
+            var hashCode = m_Hash.GetHashCode();
+            hashCode = (hashCode * 397) ^ m_PathID.GetHashCode();
+            return hashCode;
+        }
+    }
+
 
     public class AssetReferenceTreeViewItem : TreeViewItem
     {
@@ -19,14 +59,19 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             set { m_Hash = value; }
         }
 
-        long m_PathID;
-        
+        long m_PathID;        
         public long pathID
         {
             get { return m_PathID; }
             set { m_PathID = value; }
         }
 
+        bool m_IsReference;
+        public bool IsReference
+        {
+            get { return m_IsReference; }
+            set { m_IsReference = value; }
+        }
     }
 
 
@@ -35,7 +80,9 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         AssetBundleDumpData m_AssetBundleDumpData;
         string m_AssetBundleHash;
         bool m_IsBuild;
-
+        Dictionary<ReferenceInfo, AssetReferenceTreeViewItem> m_ReferenceInfo2AssetReferenceTreeViewItems;
+        Stack<int> m_Undo;
+        Stack<int> m_Redo;
 
         public bool IsBuild
         {
@@ -47,7 +94,11 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         {
             m_AssetBundleHash = string.Empty;
             m_IsBuild = false;
-            showBorder = true;            
+            showBorder = true;
+            m_Undo  = new Stack<int>();
+            m_Redo = new Stack<int>();
+
+            showAlternatingRowBackgrounds = true;
         }
 
     
@@ -62,7 +113,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     depth = parent.depth + 1,
                     displayName = displayName,
                 };
-                parent.AddChild(assetInfoItem);
+                parent.AddChild(assetInfoItem);                
                 return;
             }
 
@@ -115,9 +166,26 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     
                     parent.AddChild(assetInfoItem);
 
+                    if (hash == m_AssetBundleHash && assetInfoItem.depth != 0)
+                    {
+                        assetInfoItem.displayName += " [...]";
+                        assetInfoItem.IsReference = true;
+                        continue;
+                    }
 
-
-
+                    var referenceInfo = new ReferenceInfo { hash = hash, pathID = pathID };
+                    result = m_ReferenceInfo2AssetReferenceTreeViewItems.ContainsKey(referenceInfo);
+                    if (result)
+                    {
+                        assetInfoItem.displayName += " [...]";
+                        assetInfoItem.IsReference = true;
+                        continue;
+                    }
+                    else
+                    {
+                        m_ReferenceInfo2AssetReferenceTreeViewItems.Add(referenceInfo, assetInfoItem);
+                    }
+                  
                     bool IsCirculation = false;
                     var checkItem = (AssetReferenceTreeViewItem)parent;
                     while(checkItem != null)
@@ -132,13 +200,9 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                         checkItem = checkItem.parent as AssetReferenceTreeViewItem;
                     }
                     if (!IsCirculation)
-                    {
-                        var i = 0;
+                    {                        
                         foreach (var pptrInfo in assetDumpInfo.PPtrInfos)
-                        {
-                            var progress = (float)i / (float)assetDumpInfo.PPtrInfos.Length;
-                            EditorUtility.DisplayProgressBar("AssetBundleDumper", $"Build TreeView depth({assetInfoItem.depth}) TreeID:{treeID}", progress);
-                            i++;
+                        {                     
                             if (pptrInfo.fileID == 0 && pptrInfo.pathID == 0)
                             {
                                 // null
@@ -147,8 +211,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                             var path = assetBundleDumpInfo.paths[pptrInfo.fileID];
                             var pptrHash = Path.GetFileNameWithoutExtension(path);
                             BuildSub(assetInfoItem, pptrHash, pptrInfo.pathID, ref treeID);
-                        }
-                        EditorUtility.ClearProgressBar();
+                        }                        
                     }
                     break;
                 }
@@ -158,7 +221,11 @@ namespace UTJ.UnityAssetBundleDumper.Editor
 
 
         protected override TreeViewItem BuildRoot()
-        {                        
+        {
+            m_Undo.Clear();
+            m_Redo.Clear();
+
+            m_ReferenceInfo2AssetReferenceTreeViewItems = new Dictionary<ReferenceInfo, AssetReferenceTreeViewItem>();
             int id = 0;
             var root = new AssetReferenceTreeViewItem { id = id++, depth = -1, displayName = "Root" };
             if (m_AssetBundleDumpData != null && m_AssetBundleDumpData.m_Hash2AssetBundleBundeInfo != null)
@@ -172,7 +239,11 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     foreach (var assetDumpInfo in assetBundleDumpInfo.assetDumpInfos)
                     {
                         var progress = (float)i / (float)assetBundleDumpInfo.assetDumpInfos.Length;
-                        EditorUtility.DisplayProgressBar("AssetBundleDumper", "Build TreeView", progress);
+                        var cancel = EditorUtility.DisplayCancelableProgressBar("AssetBundleDumper", "Build TreeView", progress);
+                        if (cancel)
+                        {
+                            break;
+                        }
                         BuildSub(root, m_AssetBundleHash, assetDumpInfo.id, ref id);
                         i++;
                     }
@@ -200,6 +271,64 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             m_AssetBundleHash = hash;
             Reload();         
         }
+
+        protected override void DoubleClickedItem(int id)
+        {
+            
+            var item = this.FindItem(id, rootItem) as AssetReferenceTreeViewItem;
+            if (item.IsReference)
+            {
+                var referenceInfo = new ReferenceInfo { hash = item.hash, pathID = item.pathID };
+                var result = m_ReferenceInfo2AssetReferenceTreeViewItems.ContainsKey(referenceInfo);
+                if (result)
+                {
+                    m_Redo.Clear();
+                    m_Undo.Push(id);
+                    var referenceItem = m_ReferenceInfo2AssetReferenceTreeViewItems[referenceInfo];
+                    FrameItem(referenceItem.id);
+                    SetSelection(new List<int> { referenceItem.id });
+                }
+            }
+        }
+
+
+        protected override bool CanMultiSelect(TreeViewItem item)
+        {
+            return false;
+        }
+
+
+        public void Undo()
+        {
+            if((m_Undo != null) && (m_Undo.Count > 0))
+            {
+                var selections = GetSelection();
+                if (selections != null && selections.Count > 0)
+                {
+                    m_Redo.Push(selections[0]);
+                }
+                var id = m_Undo.Pop();
+                FrameItem(id);
+                SetSelection(new List<int> { id });                                                
+            }
+        }
+
+        public void Redo()
+        {
+            if((m_Redo != null) && (m_Redo.Count > 0))
+            {
+                var selections = GetSelection();
+                if (selections != null && selections.Count > 0)
+                {
+                    m_Undo.Push(selections[0]);
+                }
+                var id = m_Redo.Pop();
+                FrameItem(id);
+                SetSelection(new List<int> { id });
+                
+            }
+        }
+
     }
 
 }

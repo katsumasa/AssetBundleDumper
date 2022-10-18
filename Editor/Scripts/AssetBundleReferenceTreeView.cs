@@ -25,10 +25,10 @@ namespace UTJ.UnityAssetBundleDumper.Editor
 
     public class AssetBundleReferenceTreeView : TreeView
     {
-        AssetBundleDumpData m_AssetBundleDumpData;
-        string m_AssetBundleHash;
-        bool m_IsBuild;
-        List<string> m_DependencyFileList;
+        protected AssetBundleDumpData m_AssetBundleDumpData;
+        protected string m_AssetBundleHash;
+        protected bool m_IsBuild;
+        protected List<string> m_DependencyFileList;
 
         public bool IsBuild
         {
@@ -45,6 +45,12 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         {
             m_IsBuild = false;
             showBorder = false;
+            showAlternatingRowBackgrounds = true;
+        }
+
+        protected override bool CanMultiSelect(TreeViewItem item)
+        {
+            return false;
         }
 
         protected override TreeViewItem BuildRoot()
@@ -90,15 +96,16 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         /// <param name="hash"></param>
         /// <param name="_id">TreeViewItemのID</param>
         /// <returns></returns>
-        bool Dependency(TreeViewItem parentItem,string hash,ref int _id)
+        protected virtual bool Dependency(TreeViewItem parentItem,string hash,ref int _id)
         {
-            string assetBundleFilePath;
+            string assetBundleFilePath = string.Empty;
             var result = m_AssetBundleDumpData.m_Hash2AssetBundleFilePaths.TryGetValue(hash, out assetBundleFilePath);
             if (!result)
             {
                 return false;
             }
-            string dumpFilePath;
+            
+            string dumpFilePath = string.Empty;
             result = m_AssetBundleDumpData.m_Hash2DumpFilePaths.TryGetValue(hash, out dumpFilePath);
             if (!result)
             {
@@ -141,7 +148,6 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     {
                         var childHash = words[2];
                         var fpath = m_AssetBundleDumpData.m_Hash2AssetBundleFilePaths[childHash];
-
 
                         var item = new AssetBundleReferenceTreeViewItem { id = ++_id, depth = parentItem.depth + 1, hash = childHash, displayName = Path.GetFileName(fpath) + "(" + childHash + ")" };
                         parentItem.AddChild(item);
