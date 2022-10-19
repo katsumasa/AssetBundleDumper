@@ -83,6 +83,11 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         Dictionary<ReferenceInfo, AssetReferenceTreeViewItem> m_ReferenceInfo2AssetReferenceTreeViewItems;
         Stack<int> m_Undo;
         Stack<int> m_Redo;
+        string m_SearchHash;
+        int m_SearchIndex;
+        List<AssetReferenceTreeViewItem> m_SearchItems;
+
+
 
         public bool IsBuild
         {
@@ -97,8 +102,66 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             showBorder = true;
             m_Undo  = new Stack<int>();
             m_Redo = new Stack<int>();
-
+            m_SearchItems = new List<AssetReferenceTreeViewItem>();
             showAlternatingRowBackgrounds = true;
+        }
+
+
+        public void SearchHashTreeViewItem(string hash)
+        {
+            AssetReferenceTreeViewItem item;
+
+            if (m_SearchHash == hash)
+            {
+                m_SearchIndex++;
+                if(m_SearchItems.Count <= m_SearchIndex)
+                {
+                    m_SearchIndex = 0;
+                }                
+            }
+            else
+            {                
+                m_SearchItems.Clear();
+                m_Undo.Clear();
+                m_Redo.Clear();
+                CollectHashItemRecurive(hash,rootItem as AssetReferenceTreeViewItem, ref m_SearchItems);
+                if(m_SearchItems.Count == 0)
+                {
+                    return;
+                }
+                m_SearchIndex = 0;
+                m_SearchHash = hash;
+            }
+            if (m_SearchItems.Count > m_SearchIndex)
+            {
+                var selections = GetSelection();
+                if (selections != null && selections.Count > 0)
+                {
+                    m_Undo.Push(selections[0]);
+                }
+                item = m_SearchItems[m_SearchIndex];
+                FrameItem(item.id);
+                SetSelection(new List<int> { item.id });
+            }
+        }
+
+        protected void CollectHashItemRecurive(string hash, AssetReferenceTreeViewItem item,ref List<AssetReferenceTreeViewItem> list)
+        {
+            if(item == null)
+            {
+                return;
+            }
+            if(item.hash == hash)
+            {
+                list.Add(item);
+            }
+            if (item.hasChildren)
+            {
+                foreach (TreeViewItem child in item.children)
+                {
+                    CollectHashItemRecurive(hash, child as AssetReferenceTreeViewItem, ref list);
+                }
+            }
         }
 
     
@@ -117,9 +180,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 return;
             }
 
-
             AssetBundleDumpInfo assetBundleDumpInfo;
-
             var result = m_AssetBundleDumpData.m_Hash2AssetBundleBundeInfo.TryGetValue(hash, out assetBundleDumpInfo);
             if (result == false)
             {
@@ -224,6 +285,8 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         {
             m_Undo.Clear();
             m_Redo.Clear();
+            m_SearchItems.Clear();
+            m_SearchHash = string.Empty;
 
             m_ReferenceInfo2AssetReferenceTreeViewItems = new Dictionary<ReferenceInfo, AssetReferenceTreeViewItem>();
             int id = 0;

@@ -487,10 +487,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         }
 
         int m_HashIndex;       
-        string m_AssetBundleFilePath = string.Empty;        
-        Vector2 m_DependencyTreeScroll;
-        Vector2 m_DependencyListScroll;
-        Vector2 m_AssetBundleDumpInfoTreeScroll;
+        string m_AssetBundleFilePath = string.Empty;                
 
         [SerializeField] TreeViewState m_AssetBundleReferenceTreeViewState;
         AssetBundleReferenceTreeView m_AssetBundleReferenceTreeView;
@@ -529,26 +526,32 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 }
             }
 
-            if(m_AssetBundleReferenceTreeViewState == null)
-            {
-                m_AssetBundleReferenceTreeViewState = new TreeViewState();
-            }
-            m_AssetBundleReferenceTreeView = new AssetBundleReferenceTreeView(m_AssetBundleReferenceTreeViewState);
-            m_AssetBundleReferenceTreeView.Reload();
-
-            if(m_AssetBundleReferenceListViewState == null)
-            {
-                m_AssetBundleReferenceListViewState = new TreeViewState();
-            }
-            m_AssetBundleReferenceListView = new AssetBundleReferenceListView(m_AssetBundleReferenceListViewState);
-            m_AssetBundleReferenceListView.Reload();
-
             if (m_AssetReferenceTreeViewState == null)
             {
                 m_AssetReferenceTreeViewState = new TreeViewState();
             }
             m_AssetReferenceTreeView = new AssetReferenceTreeView(m_AssetReferenceTreeViewState);
             m_AssetReferenceTreeView.Reload();
+
+
+            if (m_AssetBundleReferenceTreeViewState == null)
+            {
+                m_AssetBundleReferenceTreeViewState = new TreeViewState();
+            }
+            m_AssetBundleReferenceTreeView = new AssetBundleReferenceTreeView(m_AssetBundleReferenceTreeViewState);
+            m_AssetBundleReferenceTreeView.Reload();
+            m_AssetBundleReferenceTreeView.doubleClickedAction = m_AssetReferenceTreeView.SearchHashTreeViewItem;
+            m_AssetBundleReferenceTreeView.changeAssetBundleAction = ChangeAssetBundleAction;
+
+
+            if (m_AssetBundleReferenceListViewState == null)
+            {
+                m_AssetBundleReferenceListViewState = new TreeViewState();
+            }
+            m_AssetBundleReferenceListView = new AssetBundleReferenceListView(m_AssetBundleReferenceListViewState);
+            m_AssetBundleReferenceListView.Reload();
+            m_AssetBundleReferenceListView.doubleClickedAction = m_AssetReferenceTreeView.SearchHashTreeViewItem;
+            m_AssetBundleReferenceListView.changeAssetBundleAction= ChangeAssetBundleAction;
         }
 
         private void OnDisable()
@@ -591,7 +594,6 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     }
                     m_AssetBundleDumpData = new AssetBundleDumpData();
                 }
-
                 EditorGUILayout.EndHorizontal();
             }
 
@@ -604,7 +606,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             var oldHashIndex = m_HashIndex;
             if (GUILayout.Button(Styles.Select))
             {
-                BrowseAssetBundleRootFolder();
+                BrowseAssetBundle();
             }
             EditorGUILayout.PrefixLabel(Styles.Hash);
             if (m_AssetBundleHashes == null || m_AssetBundleHashes.Length == 0)
@@ -655,9 +657,9 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     m_AssetReferenceTreeView.Redo();
                 }
             }
-
             EditorGUILayout.EndHorizontal();
 
+            // AssetをTreeView表示
             EditorGUILayout.BeginHorizontal();
             {
                 var r = EditorGUILayout.GetControlRect(false, 400);                
@@ -665,10 +667,9 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             }
             EditorGUILayout.EndHorizontal();
 
-
+            // ----------------------------
             EditorGUILayout.Separator();
-
-            
+            // ----------------------------
             EditorGUILayout.BeginHorizontal();
             {
                 // 依存関係のTree表示
@@ -690,20 +691,6 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                         var r = EditorGUILayout.GetControlRect(false,400);
                         m_AssetBundleReferenceListView.OnGUI(r);
                     }
-#if false
-                    EditorGUI.indentLevel++;
-                    m_DependencyListScroll = EditorGUILayout.BeginScrollView(m_DependencyListScroll);
-
-                    if ((m_AssetBundleReferenceTreeView != null) && (m_AssetBundleReferenceTreeView.DependencyFileList != null))
-                    {
-                        foreach (var dependency in m_AssetBundleReferenceTreeView.DependencyFileList)
-                        {
-                            EditorGUILayout.LabelField(dependency);
-                        }
-                    }                                                                        
-                    EditorGUILayout.EndScrollView();
-                    EditorGUI.indentLevel--;
-#endif
                 }
                 EditorGUILayout.EndVertical();
             }
@@ -744,8 +731,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     
                     // 同じ名前を持つAssetBundleが存在するケースがあるので、ランダムな名前のディレクトリを追加する
                     var folderPath = Path.Combine(m_CasheFolder, Path.GetFileNameWithoutExtension(Path.GetRandomFileName()));
-                    
-                    
+                                        
                     Directory.CreateDirectory(folderPath);
                     var dstFilePath = Path.Combine(folderPath, fileName);
                     var unpackFolder = dstFilePath + "_data";                    
@@ -765,7 +751,6 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                         // SceneをAssetBundle化した場合、BuildPlayer-から始まるファイルが解凍される
                         serializeFiles = Directory.GetFiles(unpackFolder, "BuildPlayer-*", SearchOption.TopDirectoryOnly);
                     }
-
                     
                     for (var i = 0; i < serializeFiles.Length; i++)
                     {
@@ -822,11 +807,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 EditorUtility.ClearProgressBar();
             }
         }
-
-
-        
-
-
+       
         void DeleteDirectoryRecursive(string path)
         {
             DirectoryInfo di = new DirectoryInfo(path);
@@ -845,9 +826,19 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             Directory.Delete(path, true);
         }
 
-        void BrowseAssetBundleRootFolder()
+        void BrowseAssetBundle()
         {
-            m_AssetBundleFilePath = EditorUtility.OpenFilePanel("Select AssetBundle", m_AssetBundleRootFolder, "");
+            var directoryName = Path.GetDirectoryName(m_AssetBundleFilePath);
+            if (!Directory.Exists(directoryName))
+            {
+                directoryName = m_AssetBundleRootFolder;
+            }
+            var path = EditorUtility.OpenFilePanel("Select AssetBundle", directoryName, "");
+            if (String.IsNullOrEmpty(path))
+            {
+                return;
+            }
+            m_AssetBundleFilePath = path;
             string hash;
             if (m_AssetBundleFilePath2Hashes.TryGetValue(m_AssetBundleFilePath, out hash))
             {
@@ -1040,10 +1031,24 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 {
                     //Debug.Log(line);
                 }
-            }
-            
+            }            
         }
 
+
+        void ChangeAssetBundleAction(string hash)
+        {
+            for(var i = 0; i < m_AssetBundleHashes.Length; i++)
+            {
+                if(m_AssetBundleHashes[i] == hash)
+                {                    
+                    m_HashIndex = i;
+                    m_AssetBundleReferenceTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
+                    m_AssetReferenceTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
+                    m_AssetBundleReferenceListView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
+                    return;
+                }
+            }            
+        }
 
     }
 }

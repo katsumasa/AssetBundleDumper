@@ -10,6 +10,9 @@ using System.Security.Cryptography;
 namespace UTJ.UnityAssetBundleDumper.Editor
 {
 
+    /// <summary>
+    /// TreeViewItem
+    /// </summary>
     public class AssetBundleReferenceTreeViewItem : TreeViewItem
     {
         public string m_Hash;
@@ -29,6 +32,14 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         protected string m_AssetBundleHash;
         protected bool m_IsBuild;
         protected List<string> m_DependencyFileList;
+        protected AssetReferenceTreeView m_assetReferenceTreeView;
+
+        public delegate void DoubleClickedAction(string hash);
+        public DoubleClickedAction doubleClickedAction;
+
+        public delegate void ChangeAssetBundleAction(string hash);
+        public ChangeAssetBundleAction changeAssetBundleAction;
+
 
         public bool IsBuild
         {
@@ -47,6 +58,36 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             showBorder = false;
             showAlternatingRowBackgrounds = true;
         }
+
+        private void ChangeAssetBundleCB(object obj)
+        {
+            var id = (int)obj;
+            var item = this.FindItem(id, rootItem) as AssetBundleReferenceTreeViewItem;
+            if (item != null)
+            {
+                if (changeAssetBundleAction != null) { changeAssetBundleAction(item.hash); }
+            }
+        }
+
+        protected override void ContextClickedItem(int id)
+        {
+            var menu = new GenericMenu();
+            menu.AddItem(new GUIContent("Jump"),false, ChangeAssetBundleCB,id);
+            menu.ShowAsContext();
+        }
+
+        protected override void DoubleClickedItem(int id)
+        {
+            var item = this.FindItem(id, rootItem) as AssetBundleReferenceTreeViewItem;
+            if(item == null) { return; }
+            var hash = item.hash;
+
+            if(doubleClickedAction != null)
+            {
+                doubleClickedAction(hash);
+            }            
+        }
+
 
         protected override bool CanMultiSelect(TreeViewItem item)
         {
