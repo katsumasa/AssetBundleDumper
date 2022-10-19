@@ -100,9 +100,6 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             set { m_AssetDumpInfos = value; }
         }
 
-
-
-
         public AssetBundleDumpInfo()
         {
             m_Name = String.Empty;
@@ -110,7 +107,6 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             m_AssetDumpInfos = new AssetDumpInfo[0];
             m_Paths = new string[0];
         }
-
 
         public void Serialize(BinaryWriter binaryWriter)
         {
@@ -233,7 +229,6 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 m_PPtrInfos[i].Deserialize(binaryReader);
             }
         }
-
     }
 
     // AssetBundleの依存関係を表す為のClass
@@ -246,6 +241,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         int m_Depth;
         string m_Hash;
         string[] m_Children;
+        
         public HashTree(int depth,string hash,string[] children)
         {
             m_Depth = depth;
@@ -407,6 +403,29 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         }
     }
 
+    public class CommandInfo
+    {
+        string m_Hash;
+        int m_ID;
+
+        public string hash
+        {
+            get { return m_Hash; }
+        }
+
+        public int ID
+        {
+            get { return m_ID; }
+        }
+
+        public CommandInfo(string hash, int id)
+        {
+            m_Hash = hash;            
+            m_ID = id;
+        }
+    }
+
+
     public class UnityAssetBundleDumperEditorWindow : EditorWindow
     {
         static class Styles
@@ -464,6 +483,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 assetBundleDumpData.m_AssetBundleHashes = value;
             }
         }
+
         Dictionary<string, string> m_Hash2AssetBundleFilePaths
         {
             get { return assetBundleDumpData.m_Hash2AssetBundleFilePaths; }
@@ -472,6 +492,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 assetBundleDumpData.m_Hash2AssetBundleFilePaths = value;
             }
         }
+
         Dictionary<string, string> m_AssetBundleFilePath2Hashes
         {
             get { return assetBundleDumpData.m_AssetBundleFilePath2Hashes; }
@@ -480,6 +501,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 assetBundleDumpData.m_AssetBundleFilePath2Hashes = value;
             }
         }
+
         Dictionary<string, string> m_Hash2DumpFilePaths
         {
             get { return assetBundleDumpData.m_Hash2DumpFilePaths; }
@@ -497,6 +519,10 @@ namespace UTJ.UnityAssetBundleDumper.Editor
 
         [SerializeField] TreeViewState m_AssetBundleReferenceListViewState;
         AssetBundleReferenceListView m_AssetBundleReferenceListView;
+
+        Stack<CommandInfo> m_Undo;
+        Stack<CommandInfo> m_Redo;
+
 
 
         [MenuItem("Window/UTJ/AssetBundleDumper")]
@@ -532,6 +558,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             }
             m_AssetReferenceTreeView = new AssetReferenceTreeView(m_AssetReferenceTreeViewState);
             m_AssetReferenceTreeView.Reload();
+            m_AssetReferenceTreeView.changeAssetBundleAction = ChangeAssetBundleAction;
 
 
             if (m_AssetBundleReferenceTreeViewState == null)
@@ -552,6 +579,9 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             m_AssetBundleReferenceListView.Reload();
             m_AssetBundleReferenceListView.doubleClickedAction = m_AssetReferenceTreeView.SearchHashTreeViewItem;
             m_AssetBundleReferenceListView.changeAssetBundleAction= ChangeAssetBundleAction;
+
+            m_Undo = new Stack<CommandInfo>();
+            m_Redo = new Stack<CommandInfo>();
         }
 
         private void OnDisable()
@@ -582,10 +612,17 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                 EditorGUILayout.EndHorizontal();
 
                 EditorGUILayout.BeginHorizontal();
+                EditorGUI.BeginDisabledGroup(string.IsNullOrEmpty(m_AssetBundleRootFolder));
                 if (GUILayout.Button(Styles.CreateDB))
                 {
+                    if (Directory.Exists(m_WorkFolder))
+                    {
+                        DeleteDirectoryRecursive(m_WorkFolder);
+                    }                    
                     CreateDB();                    
                 }
+                EditorGUI.EndDisabledGroup();
+
                 if (GUILayout.Button(Styles.DeleteDB))
                 {
                     if (Directory.Exists(m_WorkFolder))
@@ -625,6 +662,11 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             }
             if (m_HashIndex != oldHashIndex)
             {
+                if (oldHashIndex >= 0)
+                {
+                    var command = new CommandInfo(m_AssetBundleHashes[oldHashIndex], m_AssetReferenceTreeView.GetSelectItem());
+                    m_Undo.Push(command);
+                }
                 m_AssetBundleReferenceTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
                 m_AssetReferenceTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
                 m_AssetBundleReferenceListView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
@@ -634,6 +676,11 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             m_HashIndex = EditorGUILayout.Popup(m_HashIndex, m_AssetBundleHashes);
             if (EditorGUI.EndChangeCheck())
             {
+                if (oldHashIndex >= 0)
+                {
+                    var command = new CommandInfo(m_AssetBundleHashes[oldHashIndex], m_AssetReferenceTreeView.GetSelectItem());
+                    m_Undo.Push(command);
+                }
                 // 依存関係のTree表示をビルド
                 m_AssetBundleReferenceTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
                 m_AssetReferenceTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
@@ -645,16 +692,23 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             EditorGUILayout.LabelField(Styles.AssetReferenceTreeView);
             if (GUILayout.Button("Undo"))
             {
-                if (m_AssetReferenceTreeView != null)
+                if ((m_Undo != null) && (m_Undo.Count > 0))
                 {
-                    m_AssetReferenceTreeView.Undo();
+                    var command = new CommandInfo(m_AssetBundleHashes[m_HashIndex], m_AssetReferenceTreeView.GetSelectItem());
+                    m_Redo.Push(command);
+                    command = m_Undo.Pop();                    
+                    ChangeAssetBundle(command.hash);
+                    m_AssetReferenceTreeView.SelectItem(command.ID);
                 }
             }
             if (GUILayout.Button("Redo"))
             {
-                if (m_AssetReferenceTreeView != null)
-                {
-                    m_AssetReferenceTreeView.Redo();
+                if((m_Redo != null) && (m_Redo.Count > 0)){
+                    var command = new CommandInfo(m_AssetBundleHashes[m_HashIndex], m_AssetReferenceTreeView.GetSelectItem());
+                    m_Undo.Push(command);
+                    command = m_Redo.Pop();                    
+                    ChangeAssetBundle(command.hash);
+                    m_AssetReferenceTreeView.SelectItem(command.ID);
                 }
             }
             EditorGUILayout.EndHorizontal();
@@ -1035,19 +1089,34 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         }
 
 
-        void ChangeAssetBundleAction(string hash)
+        void ChangeAssetBundle(string hash)
         {
-            for(var i = 0; i < m_AssetBundleHashes.Length; i++)
+            if (m_AssetBundleHashes[m_HashIndex] != hash)
             {
-                if(m_AssetBundleHashes[i] == hash)
-                {                    
-                    m_HashIndex = i;
-                    m_AssetBundleReferenceTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
-                    m_AssetReferenceTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
-                    m_AssetBundleReferenceListView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
-                    return;
+                for (var i = 0; i < m_AssetBundleHashes.Length; i++)
+                {
+                    if (m_AssetBundleHashes[i] == hash)
+                    {
+                        m_HashIndex = i;
+                        m_AssetBundleReferenceTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
+                        m_AssetReferenceTreeView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
+                        m_AssetBundleReferenceListView.Rebuild(assetBundleDumpData, m_AssetBundleHashes[m_HashIndex]);
+                        break;
+                    }
                 }
-            }            
+            }
+        }
+
+        /// <summary>
+        /// AssetBundleを切り替える
+        /// </summary>
+        /// <param name="hash">切り替え先のhash値</param>
+        void ChangeAssetBundleAction(string hash1,string hash2,long pathID,int id)
+        {            
+            var commandInfo = new CommandInfo(m_AssetBundleHashes[m_HashIndex], id);
+            m_Undo.Push(commandInfo);
+            ChangeAssetBundle(hash1);            
+            m_AssetReferenceTreeView.SelectItem(hash2 , pathID);
         }
 
     }

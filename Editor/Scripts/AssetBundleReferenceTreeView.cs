@@ -37,7 +37,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         public delegate void DoubleClickedAction(string hash);
         public DoubleClickedAction doubleClickedAction;
 
-        public delegate void ChangeAssetBundleAction(string hash);
+        public delegate void ChangeAssetBundleAction(string hash1,string hash2,long pathID,int id);
         public ChangeAssetBundleAction changeAssetBundleAction;
 
 
@@ -65,7 +65,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             var item = this.FindItem(id, rootItem) as AssetBundleReferenceTreeViewItem;
             if (item != null)
             {
-                if (changeAssetBundleAction != null) { changeAssetBundleAction(item.hash); }
+                if (changeAssetBundleAction != null) { changeAssetBundleAction(item.hash, item.hash ,- 1,-1); }
             }
         }
 
@@ -177,7 +177,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     if (words[0] == "Library")
                     {
                         // path(2): "Library/unity default resources" GUID: 0000000000000000e000000000000000 Type: 0
-                        var item = new AssetBundleReferenceTreeViewItem { id = ++_id, depth = parentItem.depth + 1, hash = string.Empty, displayName = words[1] };
+                        var item = new AssetBundleReferenceTreeViewItem { id = ++_id, depth = parentItem.depth + 1, hash = words[1], displayName = words[1] };
                         parentItem.AddChild(item);
 
                         if (!m_DependencyFileList.Contains(item.displayName) && item.hash != m_AssetBundleHash)
