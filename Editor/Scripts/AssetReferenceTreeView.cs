@@ -280,7 +280,8 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                                 continue;
                             }
                             var path = assetBundleDumpInfo.paths[pptrInfo.fileID];
-                            var pptrHash = Path.GetFileNameWithoutExtension(path);
+                            //var pptrHash = Path.GetFileNameWithoutExtension(path);
+                            var pptrHash = Path.GetFileName(path);
                             //var pptrHash = path;
                             BuildSub(assetInfoItem, pptrHash, pptrInfo.pathID, ref treeID);
                         }                        
@@ -383,6 +384,10 @@ namespace UTJ.UnityAssetBundleDumper.Editor
 
         public void SelectItem(int id)
         {
+            if(id < 0)
+            {
+                return;
+            }
             FrameItem(id);
             SetSelection(new List<int> { id });
         }

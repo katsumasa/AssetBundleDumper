@@ -925,14 +925,18 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             }
         }
 
-
+        /// <summary>
+        /// ダンプファイルを解析する
+        /// </summary>
+        /// <param name="fpath">ダンプファイルのパス</param>
+        /// <returns></returns>
         AssetBundleDumpInfo AnalyzeDumpFile(string fpath)
         {
             var assetBundeInfo = new AssetBundleDumpInfo();
             var assetInfos = new List<AssetDumpInfo>();            
             var pathList = new List<string>();
             //pathList.Add("Internal");
-            pathList.Add(Path.GetFileName(fpath));
+            pathList.Add(Path.GetFileNameWithoutExtension(fpath));
 
             using (StreamReader sr = new StreamReader(new FileStream(fpath, FileMode.Open)))
             {
