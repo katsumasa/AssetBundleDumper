@@ -28,19 +28,19 @@ namespace UTJ.UnityAssetBundleDumper.Editor
 
     public class AssetBundleReferenceTreeView : TreeView
     {
+        public delegate void DoubleClickedAction(string hash);
+        public delegate void ChangeAssetBundleAction(string hash1, string hash2, long pathID, int id);
+
+        public DoubleClickedAction doubleClickedAction { get; set; }
+        public ChangeAssetBundleAction changeAssetBundleAction { get; set; }
+
         protected AssetBundleDumpData m_AssetBundleDumpData;
         protected string m_AssetBundleHash;
         protected bool m_IsBuild;
         protected List<string> m_DependencyFileList;
         protected AssetReferenceTreeView m_assetReferenceTreeView;
 
-        public delegate void DoubleClickedAction(string hash);
-        public DoubleClickedAction doubleClickedAction;
-
-        public delegate void ChangeAssetBundleAction(string hash1,string hash2,long pathID,int id);
-        public ChangeAssetBundleAction changeAssetBundleAction;
-
-
+                
         public bool IsBuild
         {
             get { return m_IsBuild; }
@@ -88,7 +88,6 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             }            
         }
 
-
         protected override bool CanMultiSelect(TreeViewItem item)
         {
             return false;
@@ -126,8 +125,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         {
             m_AssetBundleDumpData = assetBundleDumpData;
             m_AssetBundleHash = hash;
-            Reload();
-            
+            Reload();            
         }
 
         /// <summary>

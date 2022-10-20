@@ -79,18 +79,23 @@ namespace UTJ.UnityAssetBundleDumper.Editor
 
     public class AssetReferenceTreeView : TreeView
     {
+        public delegate void ChangeAssetBundleAction(string hash1, string hash2, long pathID, int id);
+        
+        public ChangeAssetBundleAction changeAssetBundleAction
+        {
+            get;
+            set;
+        }
+        
         AssetBundleDumpData m_AssetBundleDumpData;
-        string m_AssetBundleHash;
-        bool m_IsBuild;
         Dictionary<ReferenceInfo, AssetReferenceTreeViewItem> m_ReferenceInfo2AssetReferenceTreeViewItems;
-        Stack<int> m_Undo;
-        Stack<int> m_Redo;
+        List<AssetReferenceTreeViewItem> m_SearchItems;
+        string m_AssetBundleHash;
+        bool m_IsBuild;                
         string m_SearchHash;
         int m_SearchIndex;
-        List<AssetReferenceTreeViewItem> m_SearchItems;
-        public delegate void ChangeAssetBundleAction(string hash1,string hash2,long pathID,int id);
-        public ChangeAssetBundleAction changeAssetBundleAction;
-
+        
+        
 
         public bool IsBuild
         {
@@ -102,18 +107,24 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         {
             m_AssetBundleHash = string.Empty;
             m_IsBuild = false;
-            showBorder = true;
-            m_Undo  = new Stack<int>();
-            m_Redo = new Stack<int>();
+            showBorder = true;            
             m_SearchItems = new List<AssetReferenceTreeViewItem>();
             showAlternatingRowBackgrounds = true;
         }
 
 
+        /// <summary>
+        /// 指定されたHash値を持つTreeViewItemを検索する
+        /// </summary>
+        /// <param name="hash"></param>
         public void SearchHashTreeViewItem(string hash)
         {
             AssetReferenceTreeViewItem item;
-            if (m_SearchHash == hash)
+            if (string.IsNullOrEmpty(hash))
+            {
+                return;
+            }
+            else if (m_SearchHash == hash)
             {
                 m_SearchIndex++;
                 if(m_SearchItems.Count <= m_SearchIndex)
@@ -123,30 +134,30 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             }
             else
             {                
-                m_SearchItems.Clear();
-                m_Undo.Clear();
-                m_Redo.Clear();
+                m_SearchItems.Clear();                
                 CollectHashItemRecurive(hash,rootItem as AssetReferenceTreeViewItem, ref m_SearchItems);
                 if(m_SearchItems.Count == 0)
                 {
+                    m_SearchHash = string.Empty;
                     return;
                 }
                 m_SearchIndex = 0;
                 m_SearchHash = hash;
             }
             if (m_SearchItems.Count > m_SearchIndex)
-            {
-                var selections = GetSelection();
-                if (selections != null && selections.Count > 0)
-                {
-                    m_Undo.Push(selections[0]);
-                }
+            {                
                 item = m_SearchItems[m_SearchIndex];
                 FrameItem(item.id);
                 SetSelection(new List<int> { item.id });
             }
         }
 
+        /// <summary>
+        /// 指定されたHash値を持つTreeViewItemを再帰的に収集する
+        /// </summary>
+        /// <param name="hash"></param>
+        /// <param name="item"></param>
+        /// <param name="list"></param>
         protected void CollectHashItemRecurive(string hash, AssetReferenceTreeViewItem item,ref List<AssetReferenceTreeViewItem> list)
         {
             if(item == null)
@@ -238,8 +249,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     }
 
                     if (hash == m_AssetBundleHash && assetInfoItem.depth != 0)
-                    {
-                        assetInfoItem.displayName += " [...]";
+                    {                        
                         assetInfoItem.IsReference = true;
                         continue;
                     }
@@ -247,8 +257,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     var referenceInfo = new ReferenceInfo { hash = hash, pathID = pathID };
                     result = m_ReferenceInfo2AssetReferenceTreeViewItems.ContainsKey(referenceInfo);
                     if (result)
-                    {
-                        assetInfoItem.displayName += " [...]";
+                    {                     
                         assetInfoItem.IsReference = true;
                         continue;
                     }
@@ -293,9 +302,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
 
 
         protected override TreeViewItem BuildRoot()
-        {
-            m_Undo.Clear();
-            m_Redo.Clear();
+        {            
             m_SearchItems.Clear();
             m_SearchHash = string.Empty;
 
@@ -313,7 +320,7 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     foreach (var assetDumpInfo in assetBundleDumpInfo.assetDumpInfos)
                     {
                         var progress = (float)i / (float)assetBundleDumpInfo.assetDumpInfos.Length;
-                        var cancel = EditorUtility.DisplayCancelableProgressBar("AssetBundleDumper", "Build TreeView", progress);
+                        var cancel = EditorUtility.DisplayCancelableProgressBar("AssetBundleDumper", $"Build TreeView... {i}/{assetBundleDumpInfo.assetDumpInfos.Length}", progress);
                         if (cancel)
                         {
                             break;
@@ -338,7 +345,11 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             return root;
         }
 
-
+        /// <summary>
+        /// TreeViewをReBuildする
+        /// </summary>
+        /// <param name="assetBundleDumpData">Dumpデータ</param>
+        /// <param name="hash">AssetBundleのHash</param>
         public void Rebuild(AssetBundleDumpData assetBundleDumpData, string hash)
         {
             m_AssetBundleDumpData = assetBundleDumpData;
@@ -346,10 +357,18 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             Reload();         
         }
 
+        /// <summary>
+        /// TreeViewItemがダブルクリックされた場合の処理
+        /// </summary>
+        /// <param name="id">ダブルクリックされたTreeViewItemのID</param>
         protected override void DoubleClickedItem(int id)
         {            
             var item = this.FindItem(id, rootItem) as AssetReferenceTreeViewItem;
             // 異なるAssetBundleの場合
+            if(item == null)
+            {
+                return;
+            }
             if (item.hash != m_AssetBundleHash)
             {
                 changeAssetBundleAction(item.hash,item.hash,item.pathID,id);                
@@ -360,6 +379,10 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             }
         }
 
+        /// <summary>
+        /// 選択されたTreeViewItemのIDを取得する
+        /// </summary>
+        /// <returns>TreeViewItemのID</returns>
         public int GetSelectItem()
         {
             var selections = GetSelection();
@@ -370,7 +393,11 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             return selections[0];
         }
 
-
+        /// <summary>
+        /// 指定されたHashとPathIDを持つTreeViewItemを選択する
+        /// </summary>
+        /// <param name="hash">hash値</param>
+        /// <param name="pathID">PathID</param>
         public void SelectItem(string hash,long pathID)
         {
             var referenceInfo = new ReferenceInfo { hash = hash, pathID = pathID };
@@ -382,9 +409,13 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             }
         }
 
+        /// <summary>
+        /// 指定されたIDを持つTreeViewItemを選択する
+        /// </summary>
+        /// <param name="id"></param>
         public void SelectItem(int id)
         {
-            if(id < 0)
+            if(id < 0 || IsContainTreeViewItemwithID(id) == false)
             {
                 return;
             }
@@ -396,7 +427,47 @@ namespace UTJ.UnityAssetBundleDumper.Editor
         protected override bool CanMultiSelect(TreeViewItem item)
         {
             return false;
-        }        
+        }
+
+        /// <summary>
+        /// 指定されたIDを持つTreeViewItemが存在するかチェックする
+        /// </summary>
+        /// <param name="id">任意のID</param>
+        /// <returns>true:存在する false:しない</returns>
+        public bool IsContainTreeViewItemwithID(int id)
+        {
+            return IsContainTreeViewItemwithIDImp(rootItem, id);
+        }
+
+
+        /// <summary>
+        /// 指定されたIDを持つTreeViewItemが存在するかチェックする
+        /// </summary>
+        /// <param name="item">TreeViewItem</param>
+        /// <param name="id">任意のID</param>
+        /// <returns>true:存在する false:しない</returns>
+        protected bool IsContainTreeViewItemwithIDImp(TreeViewItem item,int id)
+        {
+            if (item != null)
+            {
+                if (item.id == id)
+                {
+                    return true;
+                }
+                if (item.hasChildren)
+                {
+                    foreach (var child in item.children)
+                    {
+                        var result = IsContainTreeViewItemwithIDImp(child, id);
+                        if (result)
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
     }
 
 }
