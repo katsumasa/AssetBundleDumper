@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor.IMGUI.Controls;
 using System.IO;
+using UnityEditor;
 
 namespace UTJ.UnityAssetBundleDumper.Editor
 {
@@ -27,11 +28,17 @@ namespace UTJ.UnityAssetBundleDumper.Editor
             {
                 return false;
             }
+
+            var info = Path.GetFileName(dumpFilePath);
+            EditorUtility.DisplayProgressBar("AssetBundleDumper", info, 0f);
+
             using (StreamReader sr = new StreamReader(new FileStream(dumpFilePath, FileMode.Open)))
             {
                 string line = sr.ReadLine();
                 if (line != "External References")
                 {
+                    EditorUtility.ClearProgressBar();
+
                     return false;
                 }
                 var children = new List<string>();
@@ -97,6 +104,9 @@ namespace UTJ.UnityAssetBundleDumper.Editor
                     }
                 }
             }
+
+            EditorUtility.ClearProgressBar();
+
             return true;
         }
     }
