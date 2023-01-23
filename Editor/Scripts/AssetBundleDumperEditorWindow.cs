@@ -7,7 +7,6 @@ using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UTJ.UnityCommandLineTools;
 using System;
-using UTJ.UnityAssetBundleDumper.Editor;
 using Unity.VisualScripting.YamlDotNet.Core;
 using System.Data.SqlTypes;
 using static UnityEditor.Progress;
@@ -611,7 +610,7 @@ namespace UTJ.AssetBundleDumper.Editor
         Stack<History> m_historys;
 
 
-        [MenuItem("Window/UTJ/AssetBundleDumper2")]
+        [MenuItem("Window/UTJ/AssetBundleDumper")]
         public static void Open()
         {
             var instance = EditorWindow.GetWindow<AssetBundleDumperEditorWindow>();

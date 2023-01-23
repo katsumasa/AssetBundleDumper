@@ -6,7 +6,6 @@ using UnityEditor.IMGUI.Controls;
 using System.IO;
 using UnityEngine.UI;
 using System.Security.Cryptography;
-using UTJ.UnityAssetBundleDumper.Editor;
 using static Codice.Client.Common.Connection.AskCredentialsToUser;
 using System;
 
