@@ -3,7 +3,7 @@
 ## 概要
 
 ビルド済みのAssetBundleをダンプしてAssetBundleに含まれるAssetの情報やAssetBundle間の依存関係を表示するパッケージです。
-<img width="800" alt="image" src="https://user-images.githubusercontent.com/29646672/196863022-81036341-1817-48aa-a215-1a91c0cd7072.png">
+<img width="800" alt="image" src="https://user-images.githubusercontent.com/29646672/213997131-1fc3d454-6c30-429e-ac8b-8a96669b41fa.png">
 
 
 ## 動作環境
@@ -37,11 +37,11 @@ Window > UTJ > AssetBundleDumperで起動します。
 
 ここではDumpを行うAssetBundleが置かれたフォルダーやAssetBundleの検索パターンを設定します。
 
-#### AssetBundle Folder
+#### AssetBundle Root
 
 Dumpを行うビルド済みAssetBundleのフォルダーを指定します。Browseボタンを押すことでRootフォルダーを指定する為のFolderPanelが開きます。プラットフォーム毎のRootフォルダーを指定してください。
 
-#### Search Pattern
+#### Filters
 
 AssetBundleの[サーチパターン](https://learn.microsoft.com/ja-jp/dotnet/api/system.io.directory.getfiles?view=net-6.0)を指定します。`;`で区切ることで複数のパターンを指定することが可能です。
 
@@ -55,70 +55,24 @@ AssetBundleの[サーチパターン](https://learn.microsoft.com/ja-jp/dotnet/a
 
 AssetBundleをダンプします。対象となるAssetBundleの数に応じて処理時間が長くなります。
 
-#### Delete Dump Cache
 
-Dumpによって生成されたCacheファイルを削除します。(CacheファイルはProjectのLibraryフォルダ以下に作成されます)
+#### Target AssetBundle
 
-#### AssetBundle Path
-
-Browseボタンを押すことでDump結果を確認したいAssetBundleを指定することが可能です。
-
-#### AssetBundle Name
-
-選択されたAssetBundle名が表示されます。
-
-#### Hash
-
-選択されたAssetBundleのHash値が表示されます。プルダウンメニューからHash値を切り替えることが可能です。（Hash値を切り替えることで、AssetBundleの切り替えが行われます。）
+Dump結果を確認するAssetBundleを選択します、
 
 
-### Asset Reference TreeView
+### Include Files
 
-![1ba94a649b92132a3b2e7180ccf5da1f](https://user-images.githubusercontent.com/29646672/196867615-964fb254-1de5-4a61-8619-9f41ca00de63.gif)
+AssetBundleに含まれるCABファイルとそのCABファイルから参照しているCABファイルのヒエラルキーを表示します。ダブルクリックするとそのCABファイルを含むAssetBundleに表示を切り替えます。
 
-対象となるAssetBundleに含まれるAssetと、そのAssetから参照されているAssetをTree表示します。
-参照されているAssetをダブルクリックすることで、参照されているAssetが定義されている箇所へジャンプすることが可能です。
+###　Assets
 
-#### Undo/Redo
+CABに含まれるAssetsとそのAssetsから参照しているAssetsのヒエラルキーを表示します。
+ダブルクリックすると、そのAssetが含まれるAssetBundleへ表示を切り替えます。
 
-TreeViewItemをダブルクリックして発生したJumpのUndo/Redoを行います。
+### Undo
 
-#### ID
-
-AssetBundle内の各Assetに割り当てられたユニークなIDですが、全てのAssetBundleを通してユニークという訳ではありません。
-又、ID自体には特に重要な意味はありません。
-
-#### Name
-
-Asset名。名前が付けられていない場合、`Empty`と表示されます。
-
-#### ClassID
-
-Assetの[ClassID](https://docs.unity3d.com/ja/current/Manual/ClassIDReference.html)とClass名を表示します。
-
-#### Reference AssetBundle
-
-そのAssetが別のAssetBundleから参照されている場合、そのAssetBundle名とHash値を表示します。
-
-#### Reference Asset
-
-そのAssetの参照先がAssetBundleではなく`unity default resources`や`unity_builtin_extra`の場合、その名称を表示します。
-
-
-### AssetBundle Reference TreeView
-
-<img width="400" alt="image" src="https://user-images.githubusercontent.com/29646672/196111350-6054a32e-0f48-4bc1-9988-92d372fd2b55.png">
-
-AssetBundleから参照されているAssetBundleの名前とHash値をTree表示で再帰的に表示します。
-※直接参照されていないAssetBundleが含まれている事に注意して下さい。
-TreeViewItemをダブルクリックするとAsset Reference TreeViewdでそのAssetBundleから参照されているAssetTreeViewItemへ表示位置が切り替わります。
-![97f93cd8d441259710051734cfcd619d](https://user-images.githubusercontent.com/29646672/196866988-15a9bf51-ecf7-4680-8410-171b14d44bb4.gif)
-
-### AssetBundle Reference ListView
-
-AssetBundle Reference TreeViewと似ていますが、重複しない形でリスト表示します。
-<img width="400" alt="image" src="https://user-images.githubusercontent.com/29646672/196111452-26c83468-52f9-4e60-9b04-b8ac4ce95a02.png">
-
+ダブルクリックして切り替えされた表示を戻します。
 
 ## その他
 
