@@ -189,6 +189,10 @@ namespace UTJ.AssetBundleDumper.Editor
         string m_assetBundleName;
         // 外部参照のテーブル
         string[] m_externalReferences;
+        // 間接的に参照しているリファレンス全て
+        string[] m_externalReferenceRecursives;
+        // 外部から参照されている数
+        int m_referenceCounter;
         // プリロードテーブル
         PPtrInfo[] m_preloads;
         // CABに含まれるAssetのダンプ情報
@@ -198,6 +202,12 @@ namespace UTJ.AssetBundleDumper.Editor
         public string name { get { return m_name; } set { m_name = value; } }
         public string assetBundleName { get { return m_assetBundleName; } set { m_assetBundleName = value; } }
         public string[] externalReferences { get { return m_externalReferences; } set { m_externalReferences = value; } }
+        public string[] externalReferenceRecursives { get { return m_externalReferenceRecursives; } set { m_externalReferenceRecursives = value; } }
+        public int referenceCounter
+        {
+            get { return m_referenceCounter; }
+            set { m_referenceCounter = value; }
+        }
         public PPtrInfo[] preloads { get { return m_preloads; } set { m_preloads = value; } }
         public AssetInfo[] assetInfos { get { return m_assetInfos; } set { m_assetInfos = value; } }
 
@@ -207,6 +217,7 @@ namespace UTJ.AssetBundleDumper.Editor
             m_assetBundleName = string.Empty;
             m_name = string.Empty;
             m_externalReferences = new string[0];
+            m_externalReferenceRecursives = new string[0];
             m_preloads = new PPtrInfo[0];
             m_assetInfos = new AssetInfo[0];
         }
@@ -221,7 +232,12 @@ namespace UTJ.AssetBundleDumper.Editor
             {
                 binaryWriter.Write(m_externalReferences[i]);
             }
-
+            binaryWriter.Write(m_externalReferenceRecursives.Length);
+            for(var i = 0; i < m_externalReferenceRecursives.Length; i++)
+            {
+                binaryWriter.Write(m_externalReferenceRecursives[i]);
+            }
+            binaryWriter.Write(m_referenceCounter);
             binaryWriter.Write(m_preloads.Length);
             for (var i = 0; i < m_preloads.Length; i++)
             {
@@ -246,6 +262,13 @@ namespace UTJ.AssetBundleDumper.Editor
             {
                 m_externalReferences[i] = binaryReader.ReadString();
             }
+            len = binaryReader.ReadInt32();
+            m_externalReferenceRecursives = new string[len];
+            for(var i = 0; i < len; i++)
+            {
+                m_externalReferenceRecursives[i] = binaryReader.ReadString();
+            }
+            m_referenceCounter = binaryReader.ReadInt32();
 
             len = binaryReader.ReadInt32();
             m_preloads = new PPtrInfo[len];
@@ -279,8 +302,13 @@ namespace UTJ.AssetBundleDumper.Editor
 
     public class AssetBundleInfo : ISerializer
     {
+        // AssetBundle名
         string m_name;
+        // AssetBundleに含まれるCABのテーブル
         CABInfo[] m_cabInfos;
+        // 間接的に参照している全外部参照
+        string[] m_externalReferenceRecursives;
+        int m_referenceCounter;
 
         public string name
         {
@@ -294,10 +322,24 @@ namespace UTJ.AssetBundleDumper.Editor
             set { m_cabInfos = value; }
         }
 
+        public string[] externalReferenceRecursives
+        {
+            get { return m_externalReferenceRecursives; }
+            set { m_externalReferenceRecursives = value; }
+        }
+
+        public int referenceCounter
+        {
+            get { return m_referenceCounter; }
+            set { m_referenceCounter = value; }
+        }
+
         public AssetBundleInfo()
         {
             m_name = string.Empty;
             m_cabInfos = new CABInfo[0];
+            m_externalReferenceRecursives = new string[0];
+            m_referenceCounter = 0;
         }
 
         public void Serialize(BinaryWriter binaryWriter)
@@ -308,6 +350,12 @@ namespace UTJ.AssetBundleDumper.Editor
             {
                 m_cabInfos[i].Serialize(binaryWriter);
             }
+            binaryWriter.Write(m_externalReferenceRecursives.Length);
+            for(var i = 0; i < externalReferenceRecursives.Length; i++)
+            {
+                binaryWriter.Write(externalReferenceRecursives[i]);
+            }
+            binaryWriter.Write(m_referenceCounter);
         }
 
         public void Deserialize(BinaryReader binaryReader)
@@ -320,6 +368,13 @@ namespace UTJ.AssetBundleDumper.Editor
                 m_cabInfos[i] = new CABInfo();
                 m_cabInfos[i].Deserialize(binaryReader);
             }
+            len = binaryReader.ReadInt32();
+            m_externalReferenceRecursives = new string[len];
+            for(var i = 0; i < len; i++)
+            {
+                m_externalReferenceRecursives[i] = binaryReader.ReadString();
+            }
+            m_referenceCounter = binaryReader.ReadInt32();
         }
 
         public CABInfo GetCABInfo(string name)
@@ -337,7 +392,7 @@ namespace UTJ.AssetBundleDumper.Editor
 
     public class AssetBundleDumpData : ISerializer
     {
-        readonly string m_versions = "v.0.0.1";
+        readonly string m_versions = "v.0.0.2";
         int m_externalReferenceDepth;
         string m_assetBundleRootFolder;
         string m_assetBundleExtentions;
@@ -390,7 +445,6 @@ namespace UTJ.AssetBundleDumper.Editor
             return null;
         }
 
-
         public CABInfo GetCABInfo(string cabName)
         {
             foreach(var assetBundleInfo in m_assetBunleInfos)
@@ -423,6 +477,7 @@ namespace UTJ.AssetBundleDumper.Editor
             if(v != m_versions)
             {
                 // バージョンが異なる場合の処理
+                return;
             }
             m_externalReferenceDepth = binaryReader.ReadInt32();
             m_assetBundleRootFolder = binaryReader.ReadString();
@@ -435,6 +490,96 @@ namespace UTJ.AssetBundleDumper.Editor
                 m_assetBunleInfos[i].Deserialize(binaryReader);
             }
         }        
+
+
+        public void Analyze()
+        {
+            try
+            {
+                var no = 0;
+                foreach (var assetBundleInfo in m_assetBunleInfos)
+                {
+                    if (EditorUtility.DisplayCancelableProgressBar("AssetBundleDumper", "Deep Analyze", (float)no / (float)m_assetBunleInfos.Length))
+                    {
+                        break; ;
+                    }
+
+                    // 依存先が依存しているCABを再帰的に調べていく
+                    var list = new List<string>();
+                    foreach (var cabInfo in assetBundleInfo.cabInfos)
+                    {
+                        // 再帰的に内部
+                        var externalReferences = new List<string>();
+                        ExternalReferenceRecursive(cabInfo, ref externalReferences);
+                        // 自分自身が含まれている場合は削除
+                        if (externalReferences.Contains(cabInfo.name))
+                        {
+                            externalReferences.Remove(cabInfo.name);
+                        }
+                        cabInfo.externalReferenceRecursives = externalReferences.ToArray();
+                        foreach (var reference in externalReferences)
+                        {
+                            if (!list.Contains(reference))
+                            {
+                                list.Add(reference);
+                            }
+                        }
+
+                        foreach (var renference in cabInfo.externalReferences)
+                        {
+                            var external = GetCABInfo(renference);
+                            if (external != null)
+                            {
+                                // 自身が参照されている数を調べる
+                                external.referenceCounter++;
+                            }
+                        }
+                    }
+                    assetBundleInfo.externalReferenceRecursives = list.ToArray();
+                }
+
+                var path = EditorUtility.SaveFilePanel("Save File as CSV", "", "", "csv");
+                if (!string.IsNullOrEmpty(path))
+                {
+                    using (var sw = new StreamWriter(path, false, System.Text.Encoding.UTF8))
+                    {
+
+                        foreach (var assetBundleInfo in m_assetBunleInfos)
+                        {
+                            foreach (var cabInfo in assetBundleInfo.cabInfos)
+                            {
+                                sw.WriteLine($"{assetBundleInfo.name},{cabInfo.name},{cabInfo.referenceCounter}");
+                            }
+                        }
+                    }
+                }
+
+
+            }
+            finally
+            {
+                EditorUtility.ClearProgressBar();
+            }
+        }
+
+        void ExternalReferenceRecursive(CABInfo cabInfo,ref List<string> externalReferences)
+        {
+            if(cabInfo == null)
+            {
+                return;
+            }
+            if (externalReferences.Contains(cabInfo.name))
+            {
+                return;
+            }
+            foreach(var cabName in cabInfo.externalReferences)
+            {
+                externalReferences.Add(cabName);
+                ExternalReferenceRecursive(GetCABInfo(cabName),ref externalReferences);                
+            }
+
+        }
+
     }
 
 
@@ -524,6 +669,16 @@ namespace UTJ.AssetBundleDumper.Editor
             ExternalReferenceTreeViewDoubleClickedItem(1);
         }
 
+        private void OnDestroy()
+        {
+            
+            using ( var bw = new BinaryWriter(new FileStream(m_dataBaseFilePath, FileMode.Create)))
+            {
+                m_assetBundleDumpData.Serialize(bw);
+            }
+            
+        }
+
         private void OnProjectChange()
         {
             Debug.Log("OnProjectChange"); 
@@ -605,6 +760,10 @@ namespace UTJ.AssetBundleDumper.Editor
                             m_externalReferenceTreeView.SetSelection(new List<int> { 1 });
                             ExternalReferenceChangeItemCB();
                         }
+                    }
+                    if(GUILayout.Button("Deep"))
+                    {
+                        m_assetBundleDumpData.Analyze();
                     }
                     if (GUILayout.Button(Styles.Clear))
                     {
@@ -766,11 +925,7 @@ namespace UTJ.AssetBundleDumper.Editor
             foreach (DirectoryInfo subDirectory in di.EnumerateDirectories())
             {
                 subDirectory.Delete(true);
-            }
-            foreach (DirectoryInfo subDirectory in di.EnumerateDirectories())
-            {
-                subDirectory.Delete(true);
-            }
+            }            
             Directory.Delete(path, true);
         }
 
