@@ -1,6 +1,6 @@
 {
   "name": "com.utj.assetbundledumper",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "displayName": "AssetBundleDumper",
   "description": "This package dumps a built AssetBundle and displays information about the Assets contained in the AssetBundle and the dependencies between AssetBundles.",
   "unity": "2017.1",
